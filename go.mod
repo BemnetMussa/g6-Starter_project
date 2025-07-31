@@ -1,3 +1,4 @@
+
 module starter_project
 
 go 1.24.5
