@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"g6-Starter_project/Domain/entities"
-	"g6-Starter_project/Infrastructure/utils"
-	"g6-Starter_project/Infrastructure/services"
+	"g6_starter_project/Domain/entities"
+	"g6_starter_project/Infrastructure/services"
+	"g6_starter_project/Infrastructure/utils"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type userInterface interface {
@@ -18,11 +18,16 @@ type userInterface interface {
 
 type UserUsecase struct {
 	userRepo entities.UserRepository
+	tokenUsecase *TokenUsecase
 }
 
-func NewUserUsecase(userRepo entities.UserRepository) *UserUsecase {
-	return &UserUsecase{userRepo: userRepo}
+func NewUserUsecase(userRepo entities.UserRepository, tokenUsecase *TokenUsecase) *UserUsecase {
+	return &UserUsecase{
+		userRepo:     userRepo,
+		tokenUsecase: tokenUsecase,
+	}
 }
+
 
 func (u *UserUsecase) Register(user *entities.User) (*entities.User, error) {
 	// Validate email format
@@ -73,38 +78,43 @@ func (u *UserUsecase) Register(user *entities.User) (*entities.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Clear password from response for security
 	createdUser.Password = ""
 	return createdUser, nil
 }
 
-func (u *UserUsecase) Login(user *entities.User) (*entities.User, error) {
+func (u *UserUsecase) Login(user *entities.User) (*entities.User, *entities.Token, error) {
 	// Validate email format
 	if !utils.IsValidEmail(user.Email) {
-		return nil, errors.New("invalid email format")
+		return nil, nil, errors.New("invalid email format")
 	}
 	// validate password format
 	if !utils.IsValidPassword(user.Password) {
-		return nil, errors.New("invalid password format - password must be at least 8 characters and contain uppercase, lowercase, number and special character")
+		return nil, nil, errors.New("invalid password format - password must be at least 8 characters and contain uppercase, lowercase, number and special character")
 	}
 
 	// Check if user exists
 	existingUser, err := u.userRepo.GetUserByEmail(user.Email)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	
+
 	// Check if password is correct
 	bcryptService := services.NewBcryptService(10)
 	err = bcryptService.ComparePassword(existingUser.Password, user.Password)
 	if err != nil {
-		return nil, errors.New("invalid password")
+		return nil, nil, errors.New("invalid password")
+	}
+
+	// generate token
+	token, err := u.tokenUsecase.GenerateTokens(existingUser.ID.Hex(), existingUser.Role)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Clear password from response for security
 	existingUser.Password = ""
-	return existingUser, nil	
-
+	return existingUser, token, nil
 
 }

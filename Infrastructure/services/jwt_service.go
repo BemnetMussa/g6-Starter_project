@@ -11,6 +11,18 @@ type JWTService struct {
     SecretKey string
 }
 
+func NewJWTService(secretKey string) *JWTService {
+    return &JWTService{
+        SecretKey: secretKey,
+    }
+}
+
+type JWTServiceInterface interface {
+    GenerateTokens(userID string, userRole string) (string, string, error)
+    ValidateToken(tokenString string) (jwt.MapClaims, error) 
+}
+
+
 // GenerateTokens creates access and refresh tokens with essential claims.
 func (s *JWTService) GenerateTokens(userID string, userRole string) (string, string, error) {
     now := time.Now()

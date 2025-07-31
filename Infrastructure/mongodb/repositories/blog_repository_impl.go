@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-	"starter_project/Domain/entities"
+	"g6_starter_project/Domain/entities"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

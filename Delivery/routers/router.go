@@ -1,9 +1,10 @@
 package routers
 
 import (
+	"g6_starter_project/Delivery/handlers"
+	usecases "g6_starter_project/Usecases"
+
 	"github.com/gin-gonic/gin"
-	"g6-Starter_project/Delivery/handlers"
-	usecases "g6-Starter_project/Usecases"
 )
 
 func SetupRouter(userUsecase *usecases.UserUsecase) *gin.Engine {
@@ -12,5 +13,4 @@ func SetupRouter(userUsecase *usecases.UserUsecase) *gin.Engine {
 	router.POST("/register", userHandler.Register)
 	router.POST("/login", userHandler.Login)
 	return router
-}	
-
+}

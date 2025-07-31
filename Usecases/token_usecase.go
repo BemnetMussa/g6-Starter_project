@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"starter_project/Domain/entities"                    	
-	"starter_project/Infrastructure/mongodb/repositories" 
-	"starter_project/Infrastructure/services"             
-	"github.com/google/uuid"                              // For generating unique token ID
+	"g6_starter_project/Domain/entities"
+	"g6_starter_project/Infrastructure/mongodb/repositories"
+	"g6_starter_project/Infrastructure/services"
+
+	"github.com/google/uuid" // For generating unique token ID
 )
 
 // TokenUsecase handles token logic between services and database
 type TokenUsecase struct {
-	repo       *repositories.TokenRepository  
-	jwtService *services.JWTService        
+	repo       *repositories.TokenRepository
+	jwtService *services.JWTService
 }
 
 // NewTokenUsecase creates a new usecase instance
@@ -37,12 +38,12 @@ func (u *TokenUsecase) GenerateTokens(userID, userRole string) (*entities.Token,
 
 	// Prepare token entity to store in DB
 	token := &entities.Token{
-		ID:           uuid.NewString(),               
-		UserID:       userID,                       
-		AccessToken:  accessToken,                   
-		RefreshToken: refreshToken,              
-		ExpiresAt:    now.Add(7 * 24 * time.Hour),    // Token expiry (7 days)
-		CreatedAt:    now,                         
+		ID:           uuid.NewString(),
+		UserID:       userID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    now.Add(7 * 24 * time.Hour), // Token expiry (7 days)
+		CreatedAt:    now,
 	}
 
 	err = u.repo.Create(context.Background(), token)

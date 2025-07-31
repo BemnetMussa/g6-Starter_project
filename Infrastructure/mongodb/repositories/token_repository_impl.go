@@ -4,21 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"starter_project/Domain/entities"         
-	"go.mongodb.org/mongo-driver/bson"        
-	"go.mongodb.org/mongo-driver/mongo"       
+	"g6_starter_project/Domain/entities"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type TokenRepository struct {
-	collection *mongo.Collection 
+	collection *mongo.Collection
 }
 
-// NewTokenRepository creates a new TokenRepository using the "tokens" collection
-func NewTokenRepository(db *mongo.Database) *TokenRepository {
-	return &TokenRepository{
-		collection: db.Collection("tokens"),
-	}
+func NewTokenRepository(col *mongo.Collection) *TokenRepository {
+	return &TokenRepository{collection: col}
 }
+
 
 // Create inserts a new token into the database
 func (r *TokenRepository) Create(ctx context.Context, token *entities.Token) error {
@@ -35,7 +34,7 @@ func (r *TokenRepository) FindByUserID(ctx context.Context, userID string) (*ent
 			// No token found for the given use
 			return nil, fmt.Errorf("token not found for user %s", userID)
 		}
-		
+
 		return nil, fmt.Errorf("failed to find token: %v", err)
 	}
 	return &token, nil
@@ -45,8 +44,8 @@ func (r *TokenRepository) FindByUserID(ctx context.Context, userID string) (*ent
 func (r *TokenRepository) Update(ctx context.Context, userID string, update bson.M) error {
 	_, err := r.collection.UpdateOne(
 		ctx,
-		bson.M{"user_id": userID}, 
-		bson.M{"$set": update},    
+		bson.M{"user_id": userID},
+		bson.M{"$set": update},
 	)
 	return err
 }

@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"	
+	"net/http"
+
+	"g6_starter_project/Domain/entities"
+	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
-	"g6-Starter_project/Domain/entities"
-	usecases "g6-Starter_project/Usecases"
 )
 
 type UserHandler struct {
@@ -30,38 +31,39 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	createdUser, err := h.userUsecase.Register(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})		
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, createdUser)
 }
 
-
 func (h *UserHandler) Login(c *gin.Context) {
 	var loginRequest struct {
-		Email string `json:"email" binding:"required,email"`
+		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})	
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	user := entities.User{
-		Email: loginRequest.Email,
+		Email:    loginRequest.Email,
 		Password: loginRequest.Password,
 	}
-	
-	loginUser, err := h.userUsecase.Login(&user)
+
+	loginUser, userToken, err := h.userUsecase.Login(&user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	}		
+	}
 
-	c.JSON(http.StatusOK, loginUser)
-		
+	c.JSON(http.StatusOK, gin.H{
+		"user":         loginUser,
+		"accessToken":  userToken.AccessToken,
+		"refreshToken": userToken.RefreshToken,
+	})
+
 }
-
-

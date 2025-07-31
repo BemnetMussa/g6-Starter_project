@@ -5,11 +5,13 @@ import (
 	"log"
 	"os"
 
+	"g6_starter_project/Delivery/routers"
+	"g6_starter_project/Infrastructure/db"
+	"g6_starter_project/Infrastructure/mongodb/repositories"
+	"g6_starter_project/Infrastructure/services"
+	usecases "g6_starter_project/Usecases"
+
 	"github.com/joho/godotenv"
-	"g6-Starter_project/Delivery/routers"
-	"g6-Starter_project/Infrastructure/db"
-	"g6-Starter_project/Infrastructure/mongodb/repositories"
-	"g6-Starter_project/Usecases"
 )
 
 func main() {
@@ -48,12 +50,17 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(database.Collection("users"))
+	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
+
+	// Initialize services
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
 
 	// Initialize usecases
-	userUsecase := usecases.NewUserUsecase(userRepo)
+	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
+	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
 
 	// Setup router
-	router := routers.SetupRouter(userUsecase)
+	router := routers.SetupRouter(userUsecase)	
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

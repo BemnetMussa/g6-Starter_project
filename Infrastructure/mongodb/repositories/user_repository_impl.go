@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"g6_starter_project/Domain/entities"
+
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"g6-Starter_project/Domain/entities"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserRepositoryImpl struct {
@@ -32,7 +33,7 @@ func (r *UserRepositoryImpl) GetUserByEmail(email string) (*entities.User, error
 	filter := bson.M{"email": strings.ToLower(email)}
 	var user entities.User
 	err := r.db.FindOne(context.TODO(), filter).Decode(&user)
-	
+
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("user not found")
@@ -55,11 +56,11 @@ func (r *UserRepositoryImpl) GetUserByID(id string) (*entities.User, error) {
 	if err != nil {
 		return nil, errors.New("invalid user ID")
 	}
-	
+
 	filter := bson.M{"_id": objectID}
 	var user entities.User
 	err = r.db.FindOne(context.TODO(), filter).Decode(&user)
-	
+
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("user not found")
@@ -73,7 +74,7 @@ func (r *UserRepositoryImpl) UpdateUser(user *entities.User) (*entities.User, er
 	user.UpdatedAt = time.Now()
 	filter := bson.M{"_id": user.ID}
 	update := bson.M{"$set": user}
-	
+
 	_, err := r.db.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		return nil, err
@@ -86,9 +87,8 @@ func (r *UserRepositoryImpl) DeleteUser(id string) error {
 	if err != nil {
 		return errors.New("invalid user ID")
 	}
-	
+
 	filter := bson.M{"_id": objectID}
 	_, err = r.db.DeleteOne(context.TODO(), filter)
 	return err
 }
-
