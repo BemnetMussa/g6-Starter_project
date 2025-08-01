@@ -2,9 +2,10 @@ package usecases
 
 import (
 	"context"
+
 	"errors"
-	"starter_project/Domain/entities"
-	"starter_project/Infrastructure/mongodb/repositories"
+	"g6_starter_project/Domain/entities"
+	"g6_starter_project/Infrastructure/mongodb/repositories"
 	"strings"
 	"time"
 

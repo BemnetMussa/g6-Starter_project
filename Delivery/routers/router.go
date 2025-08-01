@@ -1,27 +1,29 @@
 package routers
 
 import (
-	"starter_project/Delivery/handlers"
-	"starter_project/Infrastructure/services"
+	"g6_starter_project/Infrastructure/services"
+	"g6_starter_project/Delivery/handlers"
+	usecases "g6_starter_project/Usecases"
+
 
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter(
+  userUsecase *usecases.UserUsecase
 	blogHandler *handlers.BlogHandler,
 	// user handler
 	// jwtService services.IJWTService,
 ) *gin.Engine {
 
 	r := gin.Default()
-	// User part
-	// authRoutes := r.Group("/auth")
-	// {
-	// 	authRoutes.POST("/register", userHandler.Register)
-	// 	authRoutes.POST("/login", userHandler.Login)
-	// }
+  userHandler := handlers.NewUserHandler(userUsecase)
 
-	postRoutes := r.Group("/posts")
+
+  router.POST("/register", userHandler.Register)
+	router.POST("/login", userHandler.Login)
+
+	postRoutes := r.Group("/blog")
 	{
 		// These two routes are PUBLIC
 		postRoutes.GET("", blogHandler.ListPosts)
@@ -41,4 +43,5 @@ func SetupRouter(
 	}
 
 	return r
+
 }

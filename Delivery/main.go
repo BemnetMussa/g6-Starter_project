@@ -4,61 +4,78 @@ import (
 	"context"
 	"log"
 	"os"
-	"starter_project/Delivery/handlers"
-	"starter_project/Delivery/routers"
-	"starter_project/Infrastructure/mongodb/repositories"
-	"starter_project/Usecases"
-	"time"
+
+	"g6_starter_project/Delivery/routers"
+	"g6_starter_project/Infrastructure/db"
+	"g6_starter_project/Infrastructure/mongodb/repositories"
+  "g6_starter_project/Delivery/handlers"
+	"g6_starter_project/Infrastructure/services"
+	usecases "g6_starter_project/Usecases"
 
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
+	// Load environment variables from .env file
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		log.Println("Warning: .env file not found, using system environment variables")
 	}
-	mongoURI := os.Getenv("MONGO_URI")
+
+	// Get MongoDB URI from environment
+	mongoURI := os.Getenv("MONGODB_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		log.Fatal("MONGODB_URI environment variable is required")
 	}
-	dbName := os.Getenv("DB_NAME")
+
+	// Get database name from environment
+	dbName := os.Getenv("MONGODB_DATABASE")
 	if dbName == "" {
-		dbName = "blogdb_dev" //  database name
+		dbName = "blog_api" // default fallback
 	}
 
-	// --- DATABASE CONNECTION ---
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	// Get port from environment
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080" // default fallback
+	}
+
+	// Initialize MongoDB client
+	client, err := db.ConnectMongoDB(mongoURI)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		log.Fatal("Failed to connect to MongoDB:", err)
 	}
-	defer client.Disconnect(ctx)
-	db := client.Database(dbName)
-	log.Println("Connected to MongoDB!")
+	defer client.Disconnect(context.TODO())
 
-	// jwtService := services.NewJWTService() //service part
+	// Get database
+	database := client.Database(dbName)
 
-	// Repository Layer
-	// userRepo := repositories.NewUserRepository(db) //user_part
+	// Initialize repositories
+	userRepo := repositories.NewUserRepository(database.Collection("users"))
+	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
 	blogRepo := repositories.NewBlogRepository(db)
 	interactionRepo := repositories.NewBlogInteractionRepository(db)
 
-	// Usecase Layer
-	// userUsecase := Usecases.NewUserUsecase(userRepo, nil, nil, nil) // user_part
 	blogUsecase := Usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
 
 	// Delivery Layer (Handlers)
 	var userHandler *handlers.UserHandler
 	blogHandler := handlers.NewBlogHandler(blogUsecase)
 
-	// --- SETUP ROUTER AND START SERVER ---
-	router := routers.SetupRouter(userHandler, blogHandler, jwtService)
 
-	log.Println("Server starting on port 8080...")
-	if err := router.Run(":8080"); err != nil {
-		log.Fatalf("Failed to run server: %v", err)
+	// Initialize services
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
+
+	// Initialize usecases
+	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
+	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
+
+	// Setup router
+  router := routers.SetupRouter(userHandler, blogHandler)
+
+
+	// Start server
+	log.Printf("Server starting on port %s", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatal("Failed to start server:", err)
 	}
 }
