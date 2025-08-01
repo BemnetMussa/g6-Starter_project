@@ -8,6 +8,7 @@ import (
 	"g6_starter_project/Delivery/routers"
 	"g6_starter_project/Infrastructure/db"
 	"g6_starter_project/Infrastructure/mongodb/repositories"
+  "g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
@@ -51,6 +52,15 @@ func main() {
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(database.Collection("users"))
 	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
+	blogRepo := repositories.NewBlogRepository(db)
+	interactionRepo := repositories.NewBlogInteractionRepository(db)
+
+	blogUsecase := Usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
+
+	// Delivery Layer (Handlers)
+	var userHandler *handlers.UserHandler
+	blogHandler := handlers.NewBlogHandler(blogUsecase)
+
 
 	// Initialize services
 	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
@@ -60,7 +70,8 @@ func main() {
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
 
 	// Setup router
-	router := routers.SetupRouter(userUsecase)	
+  router := routers.SetupRouter(userHandler, blogHandler)
+
 
 	// Start server
 	log.Printf("Server starting on port %s", port)
