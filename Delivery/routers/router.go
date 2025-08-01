@@ -5,43 +5,41 @@ import (
 	"g6_starter_project/Delivery/handlers"
 	usecases "g6_starter_project/Usecases"
 
-
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter(
-  userUsecase *usecases.UserUsecase
+	userUsecase *usecases.UserUsecase,
 	blogHandler *handlers.BlogHandler,
-	// user handler
-	// jwtService services.IJWTService,
+	authSvc services.JWTServiceInterface, 
 ) *gin.Engine {
 
-	r := gin.Default()
-  userHandler := handlers.NewUserHandler(userUsecase)
+	router := gin.Default()
+	userHandler := handlers.NewUserHandler(userUsecase)
 
-
-  router.POST("/register", userHandler.Register)
+	// Public routes
+	router.POST("/register", userHandler.Register)
 	router.POST("/login", userHandler.Login)
 
-	postRoutes := r.Group("/blog")
+	// Blog routes
+	postRoutes := router.Group("/blog")
 	{
-		// These two routes are PUBLIC
+		// Public
 		postRoutes.GET("", blogHandler.ListPosts)
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
 
-		// These routes are PROTECTED
-		protectedPostRoutes := postRoutes.Use(services.AuthMiddleware(jwtService))
+		// Protected
+		protectedPostRoutes := postRoutes.Group("")
+		protectedPostRoutes.Use(services.AuthMiddleware(authSvc)) 
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
 			protectedPostRoutes.DELETE("/:id", blogHandler.DeletePost)
 
-			// Routes for popularity features
 			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
 			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
 		}
 	}
 
-	return r
-
+	return router
 }

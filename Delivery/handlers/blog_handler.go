@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"starter_project/Domain/entities"
-	usecases "starter_project/Usecases"
+	"g6_starter_project/Domain/entities"
+	usecases "g6_starter_project/Usecases"
 	"strconv"
 	"strings"
 	"time"

@@ -8,7 +8,7 @@ import (
 	"g6_starter_project/Delivery/routers"
 	"g6_starter_project/Infrastructure/db"
 	"g6_starter_project/Infrastructure/mongodb/repositories"
-  "g6_starter_project/Delivery/handlers"
+	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
@@ -49,29 +49,26 @@ func main() {
 	// Get database
 	database := client.Database(dbName)
 
+	// Initialize JWT service
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
+
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(database.Collection("users"))
 	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
-	blogRepo := repositories.NewBlogRepository(db)
-	interactionRepo := repositories.NewBlogInteractionRepository(db)
-
-	blogUsecase := Usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
-
-	// Delivery Layer (Handlers)
-	var userHandler *handlers.UserHandler
-	blogHandler := handlers.NewBlogHandler(blogUsecase)
-
-
-	// Initialize services
-	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
+	blogRepo := repositories.NewBlogRepository(database)
+	interactionRepo := repositories.NewBlogInteractionRepository(database)
 
 	// Initialize usecases
 	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
+	blogUsecase := usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
 
-	// Setup router
-  router := routers.SetupRouter(userHandler, blogHandler)
+	// Initialize handlers
+	// userHandler := handlers.NewUserHandler(userUsecase)
+	blogHandler := handlers.NewBlogHandler(blogUsecase)
 
+	// Setup router with auth middleware
+	router := routers.SetupRouter(userUsecase, blogHandler, jwtService)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

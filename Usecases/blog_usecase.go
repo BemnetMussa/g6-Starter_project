@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-
 	"errors"
 	"g6_starter_project/Domain/entities"
 	"g6_starter_project/Infrastructure/mongodb/repositories"
@@ -29,20 +28,23 @@ type IBlogUsecase interface {
 type blogUsecase struct {
 	blogRepo        repositories.IBlogRepository
 	interactionRepo repositories.IBlogInteractionRepository
-	userRepo        repositories.IUserRepository // IUserRepository is the userrepository interface
+	userRepo        entities.UserRepository
 }
 
-// NewBlogUsecase is the constructor.
-func NewBlogUsecase(br repositories.IBlogRepository, ir repositories.IBlogInteractionRepository, userRepo repositories.IUserRepository) IBlogUsecase {
+// NewBlogUsecase creates a new blog usecase instance
+func 	NewBlogUsecase(
+			blogRepo repositories.IBlogRepository, 
+			interactionRepo repositories.IBlogInteractionRepository, 
+			userRepo entities.UserRepository) IBlogUsecase {
+
 	return &blogUsecase{
-		blogRepo:        br,
-		interactionRepo: ir,
-		userRepo:        ur,
+		blogRepo:        blogRepo,
+		interactionRepo: interactionRepo,
+		userRepo:        userRepo,
 	}
 }
 
-//  Method Implementations
-
+// CreatePost creates a new blog post with author and timestamps
 func (uc *blogUsecase) CreatePost(ctx context.Context, post *entities.Blog, authorID primitive.ObjectID) (*entities.Blog, error) {
 	now := time.Now()
 	post.CreatedAt = now
@@ -51,19 +53,18 @@ func (uc *blogUsecase) CreatePost(ctx context.Context, post *entities.Blog, auth
 	return uc.blogRepo.Create(ctx, post)
 }
 
+// GetPostByID retrieves a blog post by ID and tracks user view
 func (uc *blogUsecase) GetPostByID(ctx context.Context, postID string, userID *primitive.ObjectID) (*entities.Blog, error) {
 	objectID, err := primitive.ObjectIDFromHex(postID)
 	if err != nil {
 		return nil, errors.New("invalid post ID format")
 	}
 
-	// fetch the blog post
 	post, err := uc.blogRepo.FindByID(ctx, objectID)
 	if err != nil {
 		return nil, errors.New("post not found")
 	}
 
-	// track the view interaction.
 	if userID != nil {
 		interaction := &entities.BlogInteraction{
 			BlogID: objectID,
@@ -85,24 +86,22 @@ func (uc *blogUsecase) GetPostByID(ctx context.Context, postID string, userID *p
 	return post, nil
 }
 
+// UpdatePost updates blog content, tags, and timestamps if user is the author
 func (uc *blogUsecase) UpdatePost(ctx context.Context, postID string, updateData *entities.Blog, requestingUserID primitive.ObjectID) (*entities.Blog, error) {
 	objectID, err := primitive.ObjectIDFromHex(postID)
 	if err != nil {
 		return nil, errors.New("invalid post ID format")
 	}
 
-	// Get the original post
 	originalPost, err := uc.blogRepo.FindByID(ctx, objectID)
 	if err != nil {
 		return nil, errors.New("post not found")
 	}
 
-	// Check if the requester is the author
 	if originalPost.AuthorID != requestingUserID {
 		return nil, errors.New("forbidden: you are not the author of this post")
 	}
 
-	// Apply the updates
 	originalPost.Title = updateData.Title
 	originalPost.Content = updateData.Content
 	originalPost.Tags = updateData.Tags
@@ -115,19 +114,18 @@ func (uc *blogUsecase) UpdatePost(ctx context.Context, postID string, updateData
 	return originalPost, nil
 }
 
+// DeletePost deletes a blog post if the requester is the author or an admin
 func (uc *blogUsecase) DeletePost(ctx context.Context, postID string, requestingUserID primitive.ObjectID, requestingUserRole string) error {
 	objectID, err := primitive.ObjectIDFromHex(postID)
 	if err != nil {
 		return errors.New("invalid post ID format")
 	}
 
-	// Fetch the post
 	postToDelete, err := uc.blogRepo.FindByID(ctx, objectID)
 	if err != nil {
 		return errors.New("post not found")
 	}
 
-	// Check if the requester is the author OR an admin.
 	isOwner := postToDelete.AuthorID == requestingUserID
 	isAdmin := requestingUserRole == "admin"
 
@@ -138,37 +136,47 @@ func (uc *blogUsecase) DeletePost(ctx context.Context, postID string, requesting
 	return uc.blogRepo.Delete(ctx, objectID)
 }
 
-func (uc *blogUsecase) ListPosts(ctx context.Context, tag, authorName, title, sortBy string, startDate, endDate *time.Time, page, limit int64) ([]entities.Blog, int64, error) {
-	var authorID *primitive.ObjectID
-	var tags []string
+// ListPosts returns filtered and paginated blog posts with search and sort options
+func (uc *blogUsecase) ListPosts(
+    ctx context.Context,
+    tag string,
+    authorIDStr string,
+    title string,
+    sortBy string,
+    startDate, endDate *time.Time,
+    page, limit int64,
+) ([]entities.Blog, int64, error) {
+    var authorID *primitive.ObjectID
+    var tags []string
 
-	if authorName != "" {
-		author, err := uc.userRepo.FindByUsername(ctx, authorName)
-		if err == nil {
-			authorID = &author.ID
-		} else {
-			return []entities.Blog{}, 0, nil
-		}
-	}
+    // Convert authorID string to ObjectID pointer 
+    if authorIDStr != "" {
+        id, err := primitive.ObjectIDFromHex(authorIDStr)
+        if err != nil {
+            return nil, 0, errors.New("invalid author ID")
+        }
+        authorID = &id
+    }
 
-	if tag != "" {
-		tags = strings.Split(tag, ",")
-	}
+    if tag != "" {
+        tags = strings.Split(tag, ",")
+    }
 
-	options := repositories.SearchFilterOptions{
-		AuthorID:  authorID,
-		Tags:      tags,
-		Title:     title,
-		Page:      page,
-		Limit:     limit,
-		StartDate: startDate,
-		EndDate:   endDate,
-		SortBy:    sortBy,
-	}
+    options := repositories.SearchFilterOptions{
+        AuthorID:  authorID,
+        Tags:      tags,
+        Title:     title,
+        Page:      page,
+        Limit:     limit,
+        StartDate: startDate,
+        EndDate:   endDate,
+        SortBy:    sortBy,
+    }
 
-	return uc.blogRepo.Find(ctx, options)
+    return uc.blogRepo.Find(ctx, options)
 }
 
+// LikePost records a like interaction for a blog post by a user
 func (uc *blogUsecase) LikePost(ctx context.Context, postID string, userID primitive.ObjectID) error {
 	blogObjectID, err := primitive.ObjectIDFromHex(postID)
 	reactionLike := "like"
@@ -183,6 +191,7 @@ func (uc *blogUsecase) LikePost(ctx context.Context, postID string, userID primi
 	return uc.interactionRepo.Upsert(ctx, interaction)
 }
 
+// DislikePost records a dislike interaction for a blog post by a user
 func (uc *blogUsecase) DislikePost(ctx context.Context, postID string, userID primitive.ObjectID) error {
 	blogObjectID, err := primitive.ObjectIDFromHex(postID)
 	reactionDislike := "dislike"
