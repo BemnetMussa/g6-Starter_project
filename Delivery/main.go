@@ -8,6 +8,7 @@ import (
 	"g6_starter_project/Delivery/routers"
 	"g6_starter_project/Infrastructure/db"
 	"g6_starter_project/Infrastructure/mongodb/repositories"
+	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
@@ -48,12 +49,16 @@ func main() {
 	// Get database
 	database := client.Database(dbName)
 
+	// Initialize JWT service
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
+
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(database.Collection("users"))
 	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
+	blogRepo := repositories.NewBlogRepository(database)
+	interactionRepo := repositories.NewBlogInteractionRepository(database)
 
 	// Initialize services
-	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
 	emailService := services.NewEmailService()
 	rateLimiter := services.NewRateLimiter()
 
@@ -62,12 +67,16 @@ func main() {
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
 	passwordResetUsecase := usecases.NewPasswordResetUsecase(userRepo, jwtService, emailService, rateLimiter)
 	userManagementUsecase := usecases.NewUserManagementUsecase(userRepo)
+	blogUsecase := usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
+
+	// Initialize handlers
+	blogHandler := handlers.NewBlogHandler(blogUsecase)
 
 	// Start rate limiter cleanup
 	rateLimiter.StartCleanup()
 
-	// Setup router
-	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, jwtService)
+	// Setup router with all features
+	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, blogHandler, jwtService)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

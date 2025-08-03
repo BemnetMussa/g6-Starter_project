@@ -9,8 +9,8 @@ import (
 type User struct {
     ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
     FullName     string            `bson:"full_name" json:"full_name"`
-    Username     string            `bson:"username" json:"username"`
-    Email        string            `bson:"email" json:"email"`
+    Username     string            `bson:"username" json:"username"` // unique
+    Email        string            `bson:"email" json:"email"`      // unique
     Password     string            `bson:"password" json:"password"` // Allow password during registration
     Role         string            `bson:"role" json:"role,omitempty"` // "admin", "user" - optional in JSON
     ProfileImage *string           `bson:"profile_image,omitempty" json:"profile_image,omitempty"`

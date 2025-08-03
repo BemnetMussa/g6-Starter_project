@@ -1,14 +1,21 @@
 package routers
 
 import (
-	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
+	"g6_starter_project/Delivery/handlers"
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(userUsecase *usecases.UserUsecase, passwordResetUsecase *usecases.PasswordResetUsecase, userManagementUsecase *usecases.UserManagementUsecase, jwtService *services.JWTService) *gin.Engine {
+func SetupRouter(
+	userUsecase *usecases.UserUsecase, 
+	passwordResetUsecase *usecases.PasswordResetUsecase, 
+	userManagementUsecase *usecases.UserManagementUsecase,
+	blogHandler *handlers.BlogHandler,
+	jwtService *services.JWTService,
+) *gin.Engine {
+
 	router := gin.Default()
 	
 	// Initialize handlers
@@ -20,6 +27,26 @@ func SetupRouter(userUsecase *usecases.UserUsecase, passwordResetUsecase *usecas
 	router.POST("/login", userHandler.Login)
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
+	
+	// Blog routes
+	postRoutes := router.Group("/blog")
+	{
+		// Public blog routes
+		postRoutes.GET("", blogHandler.ListPosts)
+		postRoutes.GET("/:id", blogHandler.GetPostByID)
+
+		// Protected blog routes
+		protectedPostRoutes := postRoutes.Group("")
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService)) 
+		{
+			protectedPostRoutes.POST("", blogHandler.CreatePost)
+			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
+			protectedPostRoutes.DELETE("/:id", blogHandler.DeletePost)
+
+			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
+			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
+		}
+	}
 	
 	// Protected admin routes
 	adminGroup := router.Group("/admin")
