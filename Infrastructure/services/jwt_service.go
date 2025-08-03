@@ -20,6 +20,8 @@ func NewJWTService(secretKey string) *JWTService {
 type JWTServiceInterface interface {
     GenerateTokens(userID string, userRole string) (string, string, error)
     ValidateToken(tokenString string) (jwt.MapClaims, error) 
+    GenerateResetToken(userID string) (string, error)
+    ValidateResetToken(tokenString string) (jwt.MapClaims, error)
 }
 
 
@@ -73,6 +75,52 @@ func (s *JWTService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
     claims, ok := token.Claims.(jwt.MapClaims)
     if !ok || !token.Valid {
         return nil, fmt.Errorf("invalid token")
+    }
+
+    return claims, nil
+}
+
+// GenerateResetToken creates a reset token with 15-minute expiry
+func (s *JWTService) GenerateResetToken(userID string) (string, error) {
+    now := time.Now()
+
+    resetClaims := jwt.MapClaims{
+        "sub": userID,
+        "type": "reset",
+        "iat": now.Unix(),
+        "exp": now.Add(15 * time.Minute).Unix(),
+        "jti": uuid.NewString(),
+    }
+    
+    resetToken := jwt.NewWithClaims(jwt.SigningMethodHS256, resetClaims)
+    resetTokenString, err := resetToken.SignedString([]byte(s.SecretKey))
+    if err != nil {
+        return "", err
+    }
+
+    return resetTokenString, nil
+}
+
+// ValidateResetToken verifies the reset token signature and expiration
+func (s *JWTService) ValidateResetToken(tokenString string) (jwt.MapClaims, error) {
+    token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+        }
+        return []byte(s.SecretKey), nil
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok || !token.Valid {
+        return nil, fmt.Errorf("invalid reset token")
+    }
+
+    // Check if it's a reset token
+    if tokenType, ok := claims["type"].(string); !ok || tokenType != "reset" {
+        return nil, fmt.Errorf("invalid token type")
     }
 
     return claims, nil

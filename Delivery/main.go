@@ -54,13 +54,20 @@ func main() {
 
 	// Initialize services
 	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET")) 
+	emailService := services.NewEmailService()
+	rateLimiter := services.NewRateLimiter()
 
 	// Initialize usecases
 	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
+	passwordResetUsecase := usecases.NewPasswordResetUsecase(userRepo, jwtService, emailService, rateLimiter)
+	userManagementUsecase := usecases.NewUserManagementUsecase(userRepo)
+
+	// Start rate limiter cleanup
+	rateLimiter.StartCleanup()
 
 	// Setup router
-	router := routers.SetupRouter(userUsecase)	
+	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, jwtService)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

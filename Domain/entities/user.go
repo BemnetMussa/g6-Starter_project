@@ -16,6 +16,8 @@ type User struct {
     ProfileImage *string           `bson:"profile_image,omitempty" json:"profile_image,omitempty"`
     Bio          *string           `bson:"bio,omitempty" json:"bio,omitempty"`
     ContactInfo  *ContactInfo      `bson:"contact_info,omitempty" json:"contact_info,omitempty"`
+    ResetToken   *string           `bson:"reset_token,omitempty" json:"reset_token,omitempty"`
+    ResetTokenExpiresAt *time.Time `bson:"reset_token_expires_at,omitempty" json:"reset_token_expires_at,omitempty"`
     CreatedAt    time.Time         `bson:"created_at" json:"created_at"`
     UpdatedAt    time.Time         `bson:"updated_at" json:"updated_at"`
 }
@@ -33,4 +35,6 @@ type UserRepository interface {
 	GetUserCount() (int64, error)
 	UpdateUser(user *User) (*User, error)
 	DeleteUser(id string) error
+	UpdateResetToken(userID string, resetToken *string, expiresAt *time.Time) error
+	GetUserByResetToken(resetToken string) (*User, error)
 }
