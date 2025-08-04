@@ -71,3 +71,9 @@ func (u *TokenUsecase) RefreshToken(userID string) (*entities.Token, error) {
 	// Generate new access/refresh tokens and store again
 	return u.GenerateTokens(userID, "user")
 }
+
+
+// Logout user ( remove token )
+func (u *TokenUsecase) Logout(userID string) error {
+	return u.repo.DeleteByUserID(context.TODO(), userID)
+}

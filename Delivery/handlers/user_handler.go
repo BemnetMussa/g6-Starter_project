@@ -5,33 +5,32 @@ import (
 	"net/http"
 
 	"g6_starter_project/Domain/entities"
+	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
-	userUsecase *usecases.UserUsecase
-	passwordResetUsecase *usecases.PasswordResetUsecase
+	userUsecase           *usecases.UserUsecase
+	passwordResetUsecase  *usecases.PasswordResetUsecase
 }
 
-func NewUserHandler(userUsecase *usecases.UserUsecase, passwordResetUsecase *usecases.PasswordResetUsecase) *UserHandler {
+// NewUserHandler initializes a new UserHandler
+func NewUserHandler(userUC *usecases.UserUsecase, resetUC *usecases.PasswordResetUsecase) *UserHandler {
 	return &UserHandler{
-		userUsecase: userUsecase,
-		passwordResetUsecase: passwordResetUsecase,
+		userUsecase:          userUC,
+		passwordResetUsecase: resetUC,
 	}
 }
 
+// Register handles user registration
 func (h *UserHandler) Register(c *gin.Context) {
 	var user entities.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		fmt.Printf("JSON parsing error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	fmt.Printf("Received user data: %+v\n", user)
-	fmt.Printf("Password length: %d\n", len(user.Password))
 
 	createdUser, err := h.userUsecase.Register(&user)
 	if err != nil {
@@ -42,6 +41,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, createdUser)
 }
 
+// Login handles user authentication and token generation
 func (h *UserHandler) Login(c *gin.Context) {
 	var loginRequest struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -58,61 +58,78 @@ func (h *UserHandler) Login(c *gin.Context) {
 		Password: loginRequest.Password,
 	}
 
-	loginUser, userToken, err := h.userUsecase.Login(&user)
+	authenticatedUser, token, err := h.userUsecase.Login(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"user":         loginUser,
-		"accessToken":  userToken.AccessToken,
-		"refreshToken": userToken.RefreshToken,
+		"user":         authenticatedUser,
+		"accessToken":  token.AccessToken,
+		"refreshToken": token.RefreshToken,
 	})
 }
 
-// ForgotPassword handles password reset request
+// ForgotPassword sends a reset link to the user's email
 func (h *UserHandler) ForgotPassword(c *gin.Context) {
-	var request struct {
+	var req struct {
 		Email string `json:"email" binding:"required,email"`
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := h.passwordResetUsecase.RequestPasswordReset(request.Email)
+	err := h.passwordResetUsecase.RequestPasswordReset(req.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Always return success for security (don't reveal if email exists)
+	// Don't expose whether email exists or not
 	c.JSON(http.StatusOK, gin.H{
-		"message": "If the email address exists in our system, a password reset link has been sent.",
+		"message": "If the email exists, a password reset link has been sent.",
 	})
 }
 
-// ResetPassword handles password reset with token
+// ResetPassword sets a new password for the user using a reset token
 func (h *UserHandler) ResetPassword(c *gin.Context) {
-	var request struct {
+	var req struct {
 		Token       string `json:"token" binding:"required"`
 		NewPassword string `json:"new_password" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := h.passwordResetUsecase.ResetPassword(request.Token, request.NewPassword)
+	err := h.passwordResetUsecase.ResetPassword(req.Token, req.NewPassword)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Password has been successfully reset.",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully."})
+}
+
+
+func (h *UserHandler) Logout(c *gin.Context) {
+	fmt.Println("logout handler is processing ")
+	userID, exists := services.GinGetUserID(c)
+	fmt.Println("userId output: ", userID)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in context"})
+		return
+	}
+
+	err := h.userUsecase.Logout(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to logout"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }
