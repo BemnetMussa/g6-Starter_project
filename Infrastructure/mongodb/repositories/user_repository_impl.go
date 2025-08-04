@@ -92,3 +92,36 @@ func (r *UserRepositoryImpl) DeleteUser(id string) error {
 	_, err = r.db.DeleteOne(context.TODO(), filter)
 	return err
 }
+
+func (r *UserRepositoryImpl) UpdateResetToken(userID string, resetToken *string, expiresAt *time.Time) error {
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return errors.New("invalid user ID")
+	}
+
+	filter := bson.M{"_id": objectID}
+	update := bson.M{
+		"$set": bson.M{
+			"reset_token":             resetToken,
+			"reset_token_expires_at": expiresAt,
+			"updated_at":             time.Now(),
+		},
+	}
+
+	_, err = r.db.UpdateOne(context.TODO(), filter, update)
+	return err
+}
+
+func (r *UserRepositoryImpl) GetUserByResetToken(resetToken string) (*entities.User, error) {
+	filter := bson.M{"reset_token": resetToken}
+	var user entities.User
+	err := r.db.FindOne(context.TODO(), filter).Decode(&user)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("invalid reset token")
+		}
+		return nil, err
+	}
+	return &user, nil
+}

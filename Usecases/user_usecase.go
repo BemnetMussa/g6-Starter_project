@@ -89,10 +89,6 @@ func (u *UserUsecase) Login(user *entities.User) (*entities.User, *entities.Toke
 	if !utils.IsValidEmail(user.Email) {
 		return nil, nil, errors.New("invalid email format")
 	}
-	// validate password format
-	if !utils.IsValidPassword(user.Password) {
-		return nil, nil, errors.New("invalid password format - password must be at least 8 characters and contain uppercase, lowercase, number and special character")
-	}
 
 	// Check if user exists
 	existingUser, err := u.userRepo.GetUserByEmail(user.Email)
@@ -116,5 +112,4 @@ func (u *UserUsecase) Login(user *entities.User) (*entities.User, *entities.Toke
 	// Clear password from response for security
 	existingUser.Password = ""
 	return existingUser, token, nil
-
 }

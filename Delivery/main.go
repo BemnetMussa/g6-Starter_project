@@ -58,17 +58,25 @@ func main() {
 	blogRepo := repositories.NewBlogRepository(database)
 	interactionRepo := repositories.NewBlogInteractionRepository(database)
 
+	// Initialize services
+	emailService := services.NewEmailService()
+	rateLimiter := services.NewRateLimiter()
+
 	// Initialize usecases
 	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
+	passwordResetUsecase := usecases.NewPasswordResetUsecase(userRepo, jwtService, emailService, rateLimiter)
+	userManagementUsecase := usecases.NewUserManagementUsecase(userRepo)
 	blogUsecase := usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
 
 	// Initialize handlers
-	// userHandler := handlers.NewUserHandler(userUsecase)
 	blogHandler := handlers.NewBlogHandler(blogUsecase)
 
-	// Setup router with auth middleware
-	router := routers.SetupRouter(userUsecase, blogHandler, jwtService)
+	// Start rate limiter cleanup
+	rateLimiter.StartCleanup()
+
+	// Setup router with all features
+	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, blogHandler, jwtService)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

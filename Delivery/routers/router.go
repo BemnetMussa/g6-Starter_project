@@ -9,28 +9,35 @@ import (
 )
 
 func SetupRouter(
-	userUsecase *usecases.UserUsecase,
+	userUsecase *usecases.UserUsecase, 
+	passwordResetUsecase *usecases.PasswordResetUsecase, 
+	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
-	authSvc services.JWTServiceInterface, 
+	jwtService *services.JWTService,
 ) *gin.Engine {
 
 	router := gin.Default()
-	userHandler := handlers.NewUserHandler(userUsecase)
-
-	// Public routes
+	
+	// Initialize handlers
+	userHandler := handlers.NewUserHandler(userUsecase, passwordResetUsecase)
+	userManagementHandler := handlers.NewUserManagementHandler(userManagementUsecase)
+	
+	// Public routes (no authentication required)
 	router.POST("/register", userHandler.Register)
 	router.POST("/login", userHandler.Login)
-
+	router.POST("/forgot-password", userHandler.ForgotPassword)
+	router.POST("/reset-password", userHandler.ResetPassword)
+	
 	// Blog routes
 	postRoutes := router.Group("/blog")
 	{
-		// Public
+		// Public blog routes
 		postRoutes.GET("", blogHandler.ListPosts)
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
 
-		// Protected
+		// Protected blog routes
 		protectedPostRoutes := postRoutes.Group("")
-		protectedPostRoutes.Use(services.AuthMiddleware(authSvc)) 
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService)) 
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
@@ -40,6 +47,17 @@ func SetupRouter(
 			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
 		}
 	}
-
+	
+	// Protected admin routes
+	adminGroup := router.Group("/admin")
+	adminGroup.Use(services.GinAuthMiddleware(jwtService))
+	adminGroup.Use(services.GinRoleAuthorization("admin"))
+	{
+		// User management routes
+		adminGroup.PUT("/users/:id/promote", userManagementHandler.PromoteUser)
+		adminGroup.PUT("/users/:id/demote", userManagementHandler.DemoteUser)
+		adminGroup.GET("/users/:id", userManagementHandler.GetUserByID)
+	}
+	
 	return router
 }
