@@ -17,7 +17,7 @@ type userInterface interface {
 }
 
 type UserUsecase struct {
-	userRepo entities.UserRepository
+	userRepo     entities.UserRepository
 	tokenUsecase *TokenUsecase
 }
 
@@ -28,44 +28,37 @@ func NewUserUsecase(userRepo entities.UserRepository, tokenUsecase *TokenUsecase
 	}
 }
 
-
+// Register validates user input, assigns role, hashes password, and stores the user
 func (u *UserUsecase) Register(user *entities.User) (*entities.User, error) {
-	// Validate email format
 	if !utils.IsValidEmail(user.Email) {
 		return nil, errors.New("invalid email format")
 	}
 
-	// Validate password requirements
 	if !utils.IsValidPassword(user.Password) {
 		return nil, errors.New("invalid password format - password must be at least 8 characters and contain uppercase, lowercase, number and special character")
 	}
 
-	// Check if email already exists
 	existingUser, err := u.userRepo.GetUserByEmail(user.Email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("email already exists")
 	}
 
-	// Generate ObjectID for new user
 	user.ID = primitive.NewObjectID()
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	// Set role based on whether this is the first user
+	// Assign admin role to the very first user in the system
 	userCount, err := u.userRepo.GetUserCount()
 	if err != nil {
 		return nil, err
 	}
-
 	if userCount == 0 {
-		// First user becomes admin
 		user.Role = "admin"
 	} else {
-		// All other users are regular users
 		user.Role = "user"
 	}
 
-	// Hash the password
+	// Secure the password before storing it
 	bcryptService := services.NewBcryptService(10)
 	hashedPassword, err := bcryptService.HashPassword(user.Password)
 	if err != nil {
@@ -73,43 +66,40 @@ func (u *UserUsecase) Register(user *entities.User) (*entities.User, error) {
 	}
 	user.Password = hashedPassword
 
-	// Create the user
 	createdUser, err := u.userRepo.CreateUser(user)
 	if err != nil {
 		return nil, err
 	}
 
-	// Clear password from response for security
+	// Don't expose password in the response
 	createdUser.Password = ""
 	return createdUser, nil
 }
 
+// Login checks credentials and returns user + tokens if valid
 func (u *UserUsecase) Login(user *entities.User) (*entities.User, *entities.Token, error) {
-	// Validate email format
 	if !utils.IsValidEmail(user.Email) {
 		return nil, nil, errors.New("invalid email format")
 	}
 
-	// Check if user exists
 	existingUser, err := u.userRepo.GetUserByEmail(user.Email)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Check if password is correct
+	// Compare entered password with stored hash
 	bcryptService := services.NewBcryptService(10)
 	err = bcryptService.ComparePassword(existingUser.Password, user.Password)
 	if err != nil {
 		return nil, nil, errors.New("invalid password")
 	}
 
-	// generate token
+	// Generate JWT access & refresh tokens
 	token, err := u.tokenUsecase.GenerateTokens(existingUser.ID.Hex(), existingUser.Role)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Clear password from response for security
 	existingUser.Password = ""
 	return existingUser, token, nil
 }
