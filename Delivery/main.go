@@ -67,16 +67,18 @@ func main() {
 	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
 	passwordResetUsecase := usecases.NewPasswordResetUsecase(userRepo, jwtService, emailService, rateLimiter)
 	userManagementUsecase := usecases.NewUserManagementUsecase(userRepo)
+	userProfileUsecase := usecases.NewUserProfileUsecase(userRepo)
 	blogUsecase := usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
 
 	// Initialize handlers
 	blogHandler := handlers.NewBlogHandler(blogUsecase)
+	userProfileHandler := handlers.NewUserProfileHandler(userProfileUsecase)
 
 	// Start rate limiter cleanup
 	rateLimiter.StartCleanup()
 
 	// Setup router with all features
-	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, blogHandler, jwtService)
+	router := routers.SetupRouter(userUsecase, passwordResetUsecase, userManagementUsecase, blogHandler, userProfileHandler, jwtService)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

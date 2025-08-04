@@ -13,6 +13,7 @@ func SetupRouter(
 	passwordResetUsecase *usecases.PasswordResetUsecase, 
 	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
+	userProfileHandler *handlers.UserProfileHandler,
 	jwtService *services.JWTService,
 ) *gin.Engine {
 
@@ -27,6 +28,14 @@ func SetupRouter(
 	router.POST("/login", userHandler.Login)
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
+	
+	// Profile routes (authentication required)
+	profileRoutes := router.Group("/profile")
+	profileRoutes.Use(services.GinAuthMiddleware(jwtService))
+	{
+		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
+		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
+	}
 	
 	// Blog routes
 	postRoutes := router.Group("/blog")

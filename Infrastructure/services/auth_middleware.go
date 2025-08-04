@@ -1,10 +1,17 @@
 package services
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"github.com/gin-gonic/gin"
+)
+
+// Define context keys to store user info in request context
+type contextKey string
+
+const (
+	UserIDKey contextKey = "userID"
+	RoleKey   contextKey = "userRole"
 )
 
 // AuthMiddleware verifies JWT access tokens on incoming Gin HTTP requests

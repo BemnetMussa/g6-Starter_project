@@ -1,15 +1,20 @@
 package handlers
 
 import (
+	// "context"
+	// "encoding/json"
+	// "fmt"
 	"net/http"
-	"g6_starter_project/Domain/entities"
-	usecases "g6_starter_project/Usecases"
 	"strconv"
-	"strings"
 	"time"
+	"strings"
 
-	"github.com/gin-gonic/gin"
+	"g6_starter_project/Domain/entities"
+	"g6_starter_project/Usecases"
+	
+	// "g6_starter_project/infrastructure/redisdb" // ⚠️ Adjust import path if needed
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gin-gonic/gin"
 )
 
 // BlogHandler - the controller for blog-related HTTP requests.
@@ -30,7 +35,7 @@ func (h *BlogHandler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	authorIDHex, exists := c.Get("user_id")
+	authorIDHex, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -53,7 +58,7 @@ func (h *BlogHandler) GetPostByID(c *gin.Context) {
 
 	// Check if a user is logged in to track the view.(optional)
 	var userID *primitive.ObjectID
-	userIDHex, exists := c.Get("user_id")
+	userIDHex, exists := c.Get("userID")
 	if exists {
 		id, err := primitive.ObjectIDFromHex(userIDHex.(string))
 		if err == nil {
@@ -80,7 +85,7 @@ func (h *BlogHandler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	userIDHex, _ := c.Get("user_id")
+	userIDHex, _ := c.Get("userID")
 	requestingUserID, _ := primitive.ObjectIDFromHex(userIDHex.(string))
 
 	updatedPost, err := h.blogUsecase.UpdatePost(c.Request.Context(), postID, &updateData, requestingUserID)
@@ -98,54 +103,76 @@ func (h *BlogHandler) UpdatePost(c *gin.Context) {
 
 // ListPosts handles GET /posts requests with filtering, searching, and pagination.
 func (h *BlogHandler) ListPosts(c *gin.Context) {
-	// Get the optional query parameters from the URL.
+	ctx := c.Request.Context()
+
+	// Query params
 	tag := c.Query("tag")
 	authorName := c.Query("author")
 	title := c.Query("title")
-	sortBy := c.Query("sort_by")
+	sortBy := c.DefaultQuery("sortBy", "createdAt")
 
-	var startDate, endDate *time.Time
-	if dateStr := c.Query("start_date"); dateStr != "" {
-		if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
-			startDate = &t
+	// Date filtering
+	var startTimePtr, endTimePtr *time.Time
+
+	startDateStr := c.Query("startDate")
+	if startDateStr != "" {
+		t, err := time.Parse("2006-01-02", startDateStr)
+		if err == nil {
+			startTimePtr = &t
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid startDate format. Use YYYY-MM-DD"})
+			return
 		}
 	}
-	if dateStr := c.Query("end_date"); dateStr != "" {
-		if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
-			endDate = &t
+
+	endDateStr := c.Query("endDate")
+	if endDateStr != "" {
+		t, err := time.Parse("2006-01-02", endDateStr)
+		if err == nil {
+			endTimePtr = &t
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endDate format. Use YYYY-MM-DD"})
+			return
 		}
 	}
-	page, err := strconv.ParseInt(c.DefaultQuery("page", "1"), 10, 64)
+
+	// Pagination
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
-		// If 'page' is not a valid number or is less than 1, default to 1.
 		page = 1
 	}
-
-	limit, err := strconv.ParseInt(c.DefaultQuery("limit", "10"), 10, 64)
+	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
-		// If 'limit' is not a valid number or is less than 1, default to 10.
 		limit = 10
 	}
 
-	posts, total, err := h.blogUsecase.ListPosts(c.Request.Context(), tag, authorName, title, sortBy, startDate, endDate, page, limit)
+	// Usecase call
+	posts, total, err := h.blogUsecase.ListPosts(ctx, tag, authorName, title, sortBy, startTimePtr, endTimePtr, int64(page), int64(limit))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve posts"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	//    the client know how many pages there are in total.
-	c.Header("X-Total-Count", strconv.FormatInt(total, 10))
-
-	c.JSON(http.StatusOK, posts)
+	// Response
+	c.JSON(http.StatusOK, gin.H{
+		"total": total,
+		"page":  page,
+		"limit": limit,
+		"posts": posts,
+	})
 }
+
 
 // DeletePost handles DELETE /posts/:id requests.
 func (h *BlogHandler) DeletePost(c *gin.Context) {
 	postID := c.Param("id")
 
 	// Get the authenticated user's info from the context.
-	userIDHex, _ := c.Get("user_id")
-	userRole, _ := c.Get("role")
+	userIDHex, _ := c.Get("userID")
+	userRole, _ := c.Get("userRole")
 	requestingUserID, _ := primitive.ObjectIDFromHex(userIDHex.(string))
 	requestingUserRole := userRole.(string)
 
@@ -166,7 +193,7 @@ func (h *BlogHandler) DeletePost(c *gin.Context) {
 func (h *BlogHandler) LikePost(c *gin.Context) {
 	postID := c.Param("id")
 
-	userIDHex, exists := c.Get("user_id")
+	userIDHex, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -186,7 +213,7 @@ func (h *BlogHandler) LikePost(c *gin.Context) {
 func (h *BlogHandler) DislikePost(c *gin.Context) {
 	postID := c.Param("id")
 
-	userIDHex, exists := c.Get("user_id")
+	userIDHex, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return

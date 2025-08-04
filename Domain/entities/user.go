@@ -12,7 +12,7 @@ type User struct {
     Username     string            `bson:"username" json:"username"` // unique
     Email        string            `bson:"email" json:"email"`      // unique
     Password     string            `bson:"password" json:"password"` // Allow password during registration
-    Role         string            `bson:"role" json:"role,omitempty"` // "admin", "user" - optional in JSON
+    Role         string            `bson:"role" json:"role,omitempty"` // "admin", "user" 
     ProfileImage *string           `bson:"profile_image,omitempty" json:"profile_image,omitempty"`
     Bio          *string           `bson:"bio,omitempty" json:"bio,omitempty"`
     ContactInfo  *ContactInfo      `bson:"contact_info,omitempty" json:"contact_info,omitempty"`
