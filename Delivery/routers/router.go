@@ -14,6 +14,7 @@ func SetupRouter(
 	passwordResetUsecase *usecases.PasswordResetUsecase,
 	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
+	userProfileHandler *handlers.UserProfileHandler,
 	jwtService *services.JWTService,
 ) *gin.Engine {
 
@@ -32,6 +33,14 @@ func SetupRouter(
 	router.Use(services.AuthMiddleware(jwtService))
 	router.POST("/logout", userHandler.Logout)
 
+	// Profile routes (authentication required)
+	profileRoutes := router.Group("/profile")
+	profileRoutes.Use(services.GinAuthMiddleware(jwtService))
+	{
+		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
+		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
+	}
+
 
 	// Blog routes
 	postRoutes := router.Group("/blog")
@@ -41,21 +50,22 @@ func SetupRouter(
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
 
 		// Protected routes 
-		postRoutes.Use(services.AuthMiddleware(jwtService)) // updated name
+		protectedPostRoutes := postRoutes.Group("")
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
 		{
-			postRoutes.POST("", blogHandler.CreatePost)
-			postRoutes.PUT("/:id", blogHandler.UpdatePost)
-			postRoutes.DELETE("/:id", blogHandler.DeletePost)
+			protectedPostRoutes.POST("", blogHandler.CreatePost)
+			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
+			protectedPostRoutes.DELETE("/:id", blogHandler.DeletePost)
 
-			postRoutes.POST("/:id/like", blogHandler.LikePost)
-			postRoutes.POST("/:id/dislike", blogHandler.DislikePost)
+			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
+			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
 		}
 	}
 
 	// Admin routes
 	adminGroup := router.Group("/admin")
-	adminGroup.Use(services.AuthMiddleware(jwtService))
-	adminGroup.Use(services.RoleAuthorization("admin"))
+	adminGroup.Use(services.GinAuthMiddleware(jwtService))
+	adminGroup.Use(services.GinRoleAuthorization("admin"))
 	{
 		adminGroup.PUT("/users/:id/promote", userManagementHandler.PromoteUser)
 		adminGroup.PUT("/users/:id/demote", userManagementHandler.DemoteUser)

@@ -10,7 +10,7 @@ import (
 	"g6_starter_project/Infrastructure/mongodb/repositories"
 	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
-	 Usecases "g6_starter_project/Usecases"
+	usecases "g6_starter_project/Usecases"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -39,27 +39,25 @@ func main() {
 	interactionRepository := repositories.NewBlogInteractionRepository(database)
 
 	// UseCases
-	tokenUseCase := Usecases.NewTokenUsecase(tokenRepository, jwtService)
-	userUseCase := Usecases.NewUserUsecase(userRepository, tokenUseCase)
-	passwordResetUseCase := Usecases.NewPasswordResetUsecase(userRepository, jwtService, emailService, rateLimiter)
-	userManagementUseCase := Usecases.NewUserManagementUsecase(userRepository)
-	blogUseCase := Usecases.NewBlogUsecase(blogRepository, interactionRepository, userRepository)
+	tokenUseCase := usecases.NewTokenUsecase(tokenRepository, jwtService)
+	userUseCase := usecases.NewUserUsecase(userRepository, tokenUseCase)
+	passwordResetUseCase := usecases.NewPasswordResetUsecase(userRepository, jwtService, emailService, rateLimiter)
+	userManagementUseCase := usecases.NewUserManagementUsecase(userRepository)
+	userProfileUseCase := usecases.NewUserProfileUsecase(userRepository)
+	blogUseCase := usecases.NewBlogUsecase(blogRepository, interactionRepository, userRepository)
 
 	// Handlers
 	blogHandler := handlers.NewBlogHandler(blogUseCase)
+	userProfileHandler := handlers.NewUserProfileHandler(userProfileUseCase)
 
 	// Router
-	router := routers.SetupRouter(userUseCase, passwordResetUseCase, userManagementUseCase, blogHandler, jwtService)
+	router := routers.SetupRouter(userUseCase, passwordResetUseCase, userManagementUseCase, blogHandler, userProfileHandler, jwtService)
 
 	log.Printf("Server running on port %s", serverPort)
 	if err := router.Run(":" + serverPort); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
-
-
-
-
 
 func LoadEnvVariables() {
 	if err := godotenv.Load(); err != nil {
