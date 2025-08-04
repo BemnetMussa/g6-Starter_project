@@ -7,6 +7,7 @@ import (
 )
 
 // Define context keys to store user info in request context
+
 type contextKey string
 
 const (

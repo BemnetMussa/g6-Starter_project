@@ -103,3 +103,8 @@ func (u *UserUsecase) Login(user *entities.User) (*entities.User, *entities.Toke
 	existingUser.Password = ""
 	return existingUser, token, nil
 }
+
+// logout user
+func (u *UserUsecase) Logout(userID string) error {
+	return u.tokenUsecase.Logout(userID)
+}
