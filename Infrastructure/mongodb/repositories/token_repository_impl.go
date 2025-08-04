@@ -52,6 +52,6 @@ func (r *TokenRepository) Update(ctx context.Context, userID string, update bson
 
 // DeleteByUserID removes a token by user ID
 func (r *TokenRepository) DeleteByUserID(ctx context.Context, userID string) error {
-	_, err := r.collection.DeleteOne(ctx, bson.M{"user_id": userID})
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
 	return err
 }

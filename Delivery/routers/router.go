@@ -6,6 +6,7 @@ import (
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
+
 )
 
 func SetupRouter(
@@ -27,6 +28,10 @@ func SetupRouter(
 	router.POST("/login", userHandler.Login)
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
+
+	router.Use(services.AuthMiddleware(jwtService))
+	router.POST("/logout", userHandler.Logout)
+
 
 	// Blog routes
 	postRoutes := router.Group("/blog")

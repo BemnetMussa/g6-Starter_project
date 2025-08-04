@@ -125,3 +125,4 @@ func (r *UserRepositoryImpl) GetUserByResetToken(resetToken string) (*entities.U
 	}
 	return &user, nil
 }
+
