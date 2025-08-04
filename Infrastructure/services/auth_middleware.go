@@ -14,11 +14,6 @@ const (
 	RoleKey   contextKey = "userRole"
 )
 
-// JWTServiceInterface should define ValidateToken(token string) (map[string]interface{}, error)
-type JWTServiceInterface interface {
-	ValidateToken(token string) (map[string]interface{}, error)
-}
-
 // AuthMiddleware verifies JWT access tokens on incoming Gin HTTP requests
 func AuthMiddleware(authSvc JWTServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
