@@ -1,8 +1,8 @@
 package routers
 
 import (
-	"g6_starter_project/Infrastructure/services"
 	"g6_starter_project/Delivery/handlers"
+	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +14,11 @@ func SetupRouter(
 	passwordResetUsecase *usecases.PasswordResetUsecase,
 	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
+	authSvc services.JWTServiceInterface,
+
 	userProfileHandler *handlers.UserProfileHandler,
 	jwtService *services.JWTService,
+
 ) *gin.Engine {
 
 	router := gin.Default()
@@ -51,7 +54,11 @@ func SetupRouter(
 
 		// Protected routes 
 		protectedPostRoutes := postRoutes.Group("")
+// <<<<<<< test/blog-route
+// 		protectedPostRoutes.Use(services.AuthMiddleware(authSvc))
+// =======
 		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
+
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)

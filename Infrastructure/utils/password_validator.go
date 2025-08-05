@@ -6,8 +6,8 @@ import (
 )
 
 func IsValidPassword(password string) bool {
-	fmt.Printf("Validating password")
-	
+	fmt.Printf("Validating password : [%s]\n", password) // for debug
+
 	// Check minimum length
 	if len(password) < 8 {
 		fmt.Printf("Password too short: %d characters\n", len(password))
@@ -52,8 +52,3 @@ func IsValidPassword(password string) bool {
 	fmt.Println("Password validation passed!")
 	return true
 }
-
-
-
-
-

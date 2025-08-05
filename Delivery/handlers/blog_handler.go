@@ -10,9 +10,8 @@ import (
 	"strings"
 
 	"g6_starter_project/Domain/entities"
-	"g6_starter_project/Usecases"
-	
-	// "g6_starter_project/infrastructure/redisdb" // ⚠️ Adjust import path if needed
+	usecases "g6_starter_project/Usecases"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/gin-gonic/gin"
 )
@@ -186,7 +185,7 @@ func (h *BlogHandler) DeletePost(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, gin.H{"message": "Post deleted successfully"})
 }
 
 // LikePost handles POST /posts/:id/like requests.
