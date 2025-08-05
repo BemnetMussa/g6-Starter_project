@@ -13,66 +13,86 @@ import (
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
-	// Load environment variables from .env file
+	LoadEnvVariables()
+
+	mongoURI, databaseName, serverPort := GetAppConfig()
+
+	mongoClient := ConnectToMongoDB(mongoURI)
+	defer mongoClient.Disconnect(context.TODO())
+
+	database := mongoClient.Database(databaseName)
+
+	// Services
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
+	emailService := services.NewEmailService()
+	rateLimiter := services.NewRateLimiter()
+	rateLimiter.StartCleanup()
+
+	// Repositories
+	userRepository := repositories.NewUserRepository(database.Collection("users"))
+	tokenRepository := repositories.NewTokenRepository(database.Collection("token"))
+	blogRepository := repositories.NewBlogRepository(database)
+	interactionRepository := repositories.NewBlogInteractionRepository(database)
+
+	// UseCases
+	tokenUseCase := usecases.NewTokenUsecase(tokenRepository, jwtService)
+	userUseCase := usecases.NewUserUsecase(userRepository, tokenUseCase)
+	passwordResetUseCase := usecases.NewPasswordResetUsecase(userRepository, jwtService, emailService, rateLimiter)
+	userManagementUseCase := usecases.NewUserManagementUsecase(userRepository)
+	userProfileUseCase := usecases.NewUserProfileUsecase(userRepository)
+	blogUseCase := usecases.NewBlogUsecase(blogRepository, interactionRepository, userRepository)
+
+	// Handlers
+	blogHandler := handlers.NewBlogHandler(blogUseCase)
+	userProfileHandler := handlers.NewUserProfileHandler(userProfileUseCase)
+
+	// Router
+	router := routers.SetupRouter(userUseCase, passwordResetUseCase, userManagementUseCase, blogHandler, userProfileHandler, jwtService)
+
+	log.Printf("Server running on port %s", serverPort)
+	if err := router.Run(":" + serverPort); err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
+}
+
+func LoadEnvVariables() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
+}
 
-	// Get MongoDB URI from environment
-	mongoURI := os.Getenv("MONGODB_URI")
+func GetAppConfig() (mongoURI string, dbName string, port string) {
+	mongoURI = os.Getenv("MONGODB_URI")
 	if mongoURI == "" {
-		log.Fatal("MONGODB_URI environment variable is required")
+		log.Fatal("Environment variable MONGODB_URI is required")
 	}
 
-	// Get database name from environment
-	dbName := os.Getenv("MONGODB_DATABASE")
+	dbName = os.Getenv("MONGODB_DATABASE")
 	if dbName == "" {
-		dbName = "blog_api" // default fallback
+		dbName = "blog_api"
 	}
 
-	// Get port from environment
-	port := os.Getenv("APP_PORT")
+	port = os.Getenv("APP_PORT")
 	if port == "" {
-		port = "8080" // default fallback
+		port = "8080"
 	}
 
-	// Initialize MongoDB client
-	client, err := db.ConnectMongoDB(mongoURI)
+	return
+}
+
+func ConnectToMongoDB(uri string) *mongo.Client {
+	client, err := db.ConnectMongoDB(uri)
 	if err != nil {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
-	defer client.Disconnect(context.TODO())
 
-	// Get database
-	database := client.Database(dbName)
-
-	// Initialize JWT service
-	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
-
-	// Initialize repositories
-	userRepo := repositories.NewUserRepository(database.Collection("users"))
-	tokenRepo := repositories.NewTokenRepository(database.Collection("token"))
-	blogRepo := repositories.NewBlogRepository(database)
-	interactionRepo := repositories.NewBlogInteractionRepository(database)
-
-	// Initialize usecases
-	tokenUsecase := usecases.NewTokenUsecase(tokenRepo, jwtService)
-	userUsecase := usecases.NewUserUsecase(userRepo, tokenUsecase)
-	blogUsecase := usecases.NewBlogUsecase(blogRepo, interactionRepo, userRepo)
-
-	// Initialize handlers
-	// userHandler := handlers.NewUserHandler(userUsecase)
-	blogHandler := handlers.NewBlogHandler(blogUsecase)
-
-	// Setup router with auth middleware
-	router := routers.SetupRouter(userUsecase, blogHandler, jwtService)
-
-	// Start server
-	log.Printf("Server starting on port %s", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatal("Failed to start server:", err)
+	if err := client.Ping(context.TODO(), nil); err != nil {
+		log.Fatal("MongoDB ping failed:", err)
 	}
+
+	return client
 }

@@ -6,15 +6,14 @@ import (
 	// "fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
+	"strings"
 
 	"g6_starter_project/Domain/entities"
 	usecases "g6_starter_project/Usecases"
 
-	// "g6_starter_project/infrastructure/redisdb" // ⚠️ Adjust import path if needed
-	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gin-gonic/gin"
 )
 
 // BlogHandler - the controller for blog-related HTTP requests.
@@ -164,6 +163,7 @@ func (h *BlogHandler) ListPosts(c *gin.Context) {
 		"posts": posts,
 	})
 }
+
 
 // DeletePost handles DELETE /posts/:id requests.
 func (h *BlogHandler) DeletePost(c *gin.Context) {

@@ -6,20 +6,44 @@ import (
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
+
 )
 
 func SetupRouter(
 	userUsecase *usecases.UserUsecase,
+	passwordResetUsecase *usecases.PasswordResetUsecase,
+	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
 	authSvc services.JWTServiceInterface,
+
+	userProfileHandler *handlers.UserProfileHandler,
+	jwtService *services.JWTService,
+
 ) *gin.Engine {
 
 	router := gin.Default()
-	userHandler := handlers.NewUserHandler(userUsecase)
+
+	// Initialize handlers
+	userHandler := handlers.NewUserHandler(userUsecase, passwordResetUsecase)
+	userManagementHandler := handlers.NewUserManagementHandler(userManagementUsecase)
 
 	// Public routes
 	router.POST("/register", userHandler.Register)
 	router.POST("/login", userHandler.Login)
+	router.POST("/forgot-password", userHandler.ForgotPassword)
+	router.POST("/reset-password", userHandler.ResetPassword)
+
+	router.Use(services.AuthMiddleware(jwtService))
+	router.POST("/logout", userHandler.Logout)
+
+	// Profile routes (authentication required)
+	profileRoutes := router.Group("/profile")
+	profileRoutes.Use(services.GinAuthMiddleware(jwtService))
+	{
+		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
+		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
+	}
+
 
 	// Blog routes
 	postRoutes := router.Group("/blog")
@@ -28,9 +52,13 @@ func SetupRouter(
 		postRoutes.GET("", blogHandler.ListPosts)
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
 
-		// Protected
+		// Protected routes 
 		protectedPostRoutes := postRoutes.Group("")
-		protectedPostRoutes.Use(services.AuthMiddleware(authSvc))
+// <<<<<<< test/blog-route
+// 		protectedPostRoutes.Use(services.AuthMiddleware(authSvc))
+// =======
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
+
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
@@ -39,6 +67,16 @@ func SetupRouter(
 			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
 			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
 		}
+	}
+
+	// Admin routes
+	adminGroup := router.Group("/admin")
+	adminGroup.Use(services.GinAuthMiddleware(jwtService))
+	adminGroup.Use(services.GinRoleAuthorization("admin"))
+	{
+		adminGroup.PUT("/users/:id/promote", userManagementHandler.PromoteUser)
+		adminGroup.PUT("/users/:id/demote", userManagementHandler.DemoteUser)
+		adminGroup.GET("/users/:id", userManagementHandler.GetUserByID)
 	}
 
 	return router
