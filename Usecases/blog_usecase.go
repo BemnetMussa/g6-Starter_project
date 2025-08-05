@@ -32,10 +32,10 @@ type blogUsecase struct {
 }
 
 // NewBlogUsecase creates a new blog usecase instance
-func 	NewBlogUsecase(
-			blogRepo repositories.IBlogRepository, 
-			interactionRepo repositories.IBlogInteractionRepository, 
-			userRepo entities.UserRepository) IBlogUsecase {
+func NewBlogUsecase(
+	blogRepo repositories.IBlogRepository,
+	interactionRepo repositories.IBlogInteractionRepository,
+	userRepo entities.UserRepository) IBlogUsecase {
 
 	return &blogUsecase{
 		blogRepo:        blogRepo,
@@ -79,8 +79,8 @@ func (uc *blogUsecase) GetPostByID(ctx context.Context, postID string, userID *p
 		return post, nil
 	}
 
-	post.Likes = int(likes)
-	post.Dislikes = int(dislikes)
+	post.Likes = int64(likes)
+	post.Dislikes = int64(dislikes)
 	post.ViewCount = int(views)
 
 	return post, nil
@@ -138,70 +138,106 @@ func (uc *blogUsecase) DeletePost(ctx context.Context, postID string, requesting
 
 // ListPosts returns filtered and paginated blog posts with search and sort options
 func (uc *blogUsecase) ListPosts(
-    ctx context.Context,
-    tag string,
-    authorIDStr string,
-    title string,
-    sortBy string,
-    startDate, endDate *time.Time,
-    page, limit int64,
+	ctx context.Context,
+	tag string,
+	authorIDStr string,
+	title string,
+	sortBy string,
+	startDate, endDate *time.Time,
+	page, limit int64,
 ) ([]entities.Blog, int64, error) {
-    var authorID *primitive.ObjectID
-    var tags []string
+	var authorID *primitive.ObjectID
+	var tags []string
 
-    // Convert authorID string to ObjectID pointer 
-    if authorIDStr != "" {
-        id, err := primitive.ObjectIDFromHex(authorIDStr)
-        if err != nil {
-            return nil, 0, errors.New("invalid author ID")
-        }
-        authorID = &id
-    }
+	// Convert authorID string to ObjectID pointer
+	if authorIDStr != "" {
+		id, err := primitive.ObjectIDFromHex(authorIDStr)
+		if err != nil {
+			return nil, 0, errors.New("invalid author ID")
+		}
+		authorID = &id
+	}
 
-    if tag != "" {
-        tags = strings.Split(tag, ",")
-    }
+	if tag != "" {
+		tags = strings.Split(tag, ",")
+	}
 
-    options := repositories.SearchFilterOptions{
-        AuthorID:  authorID,
-        Tags:      tags,
-        Title:     title,
-        Page:      page,
-        Limit:     limit,
-        StartDate: startDate,
-        EndDate:   endDate,
-        SortBy:    sortBy,
-    }
+	options := repositories.SearchFilterOptions{
+		AuthorID:  authorID,
+		Tags:      tags,
+		Title:     title,
+		Page:      page,
+		Limit:     limit,
+		StartDate: startDate,
+		EndDate:   endDate,
+		SortBy:    sortBy,
+	}
 
-    return uc.blogRepo.Find(ctx, options)
+	return uc.blogRepo.Find(ctx, options)
 }
 
-// LikePost records a like interaction for a blog post by a user
-func (uc *blogUsecase) LikePost(ctx context.Context, postID string, userID primitive.ObjectID) error {
-	blogObjectID, err := primitive.ObjectIDFromHex(postID)
-	reactionLike := "like"
-	if err != nil {
-		return errors.New("invalid post ID format")
-	}
-	interaction := &entities.BlogInteraction{
-		BlogID:   blogObjectID,
-		UserID:   userID,
-		Reaction: &reactionLike,
-	}
-	return uc.interactionRepo.Upsert(ctx, interaction)
+// new
+// --- Core Like/Dislike Logic ---
+
+const (
+	reactionLike    = "like"
+	reactionDislike = "dislike"
+)
+
+// LikePost handles the logic for a user liking a post.
+func (uc *blogUsecase) LikePost(ctx context.Context, blogIDStr string, userID primitive.ObjectID) error {
+	return uc.reactToPost(ctx, blogIDStr, userID, reactionLike)
 }
 
-// DislikePost records a dislike interaction for a blog post by a user
-func (uc *blogUsecase) DislikePost(ctx context.Context, postID string, userID primitive.ObjectID) error {
-	blogObjectID, err := primitive.ObjectIDFromHex(postID)
-	reactionDislike := "dislike"
+// DislikePost handles the logic for a user disliking a post.
+func (uc *blogUsecase) DislikePost(ctx context.Context, blogIDStr string, userID primitive.ObjectID) error {
+	return uc.reactToPost(ctx, blogIDStr, userID, reactionDislike)
+}
+
+// reactToPost is the shared private method that contains the core logic.
+func (uc *blogUsecase) reactToPost(ctx context.Context, blogIDStr string, userID primitive.ObjectID, newReactionType string) error {
+	blogID, err := primitive.ObjectIDFromHex(blogIDStr)
 	if err != nil {
-		return errors.New("invalid post ID format")
+		return errors.New("invalid blog ID format")
 	}
+
+	// 1. Find if a previous interaction exists from this user for this blog.
+	existingInteraction, err := uc.interactionRepo.FindByBlogAndUser(ctx, blogID, userID)
+	if err != nil {
+		return err
+	}
+
+	var finalReaction *string
+
+	// 2. Determine the new state of the reaction based on the rules.
+	if existingInteraction != nil && existingInteraction.Reaction != nil && *existingInteraction.Reaction == newReactionType {
+		// User is clicking the same button again (e.g., clicking "like" when it's already liked).
+		// This means we toggle it OFF.
+		finalReaction = nil // Setting reaction to nil means "no reaction"
+	} else {
+		// User is either reacting for the first time, or changing their reaction (e.g., from dislike to like).
+		finalReaction = &newReactionType
+	}
+
+	// 3. Create the interaction object and upsert it into the database.
 	interaction := &entities.BlogInteraction{
-		BlogID:   blogObjectID,
+		BlogID:   blogID,
 		UserID:   userID,
-		Reaction: &reactionDislike,
+		Reaction: finalReaction,
+		// If you track views, you'd handle the logic for setting `Viewed` here as well.
+		// For a like/dislike action, we can assume it's also a view.
+		Viewed: true,
 	}
-	return uc.interactionRepo.Upsert(ctx, interaction)
+	if err := uc.interactionRepo.Upsert(ctx, interaction); err != nil {
+		return err
+	}
+
+	// 4. Get the new total counts of likes and dislikes for the post.
+	likes, dislikes, _, err := uc.interactionRepo.GetPopularityCounts(ctx, blogID)
+	if err != nil {
+		return err
+	}
+
+	// 5. Update the denormalized counts on the main Blog document.
+	return uc.blogRepo.UpdateCounts(ctx, blogID, likes, dislikes)
 }
