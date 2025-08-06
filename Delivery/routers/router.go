@@ -30,8 +30,12 @@ func SetupRouter(
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
 
-	router.Use(services.AuthMiddleware(jwtService))
-	router.POST("/logout", userHandler.Logout)
+	// Protected logout route
+	logoutRoutes := router.Group("")
+	logoutRoutes.Use(services.AuthMiddleware(jwtService))
+	{
+		logoutRoutes.POST("/logout", userHandler.Logout)
+	}
 
 	// Profile routes (authentication required)
 	profileRoutes := router.Group("/profile")
