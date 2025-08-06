@@ -6,7 +6,6 @@ import (
 	"g6_starter_project/Domain/entities"
 	"time"
 
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,6 +33,7 @@ type IBlogRepository interface {
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	// Advanced queries: seraching, filtering
 	Find(ctx context.Context, options SearchFilterOptions) ([]entities.Blog, int64, error)
+	UpdateCounts(ctx context.Context, blogID primitive.ObjectID, likes, dislikes int64) error //new
 }
 
 // IBlogInteractionRepository defines the contract for interaction data.
@@ -41,6 +41,7 @@ type IBlogInteractionRepository interface {
 	// Upsert means "update if exists, insert if not".
 	Upsert(ctx context.Context, interaction *entities.BlogInteraction) error
 	GetPopularityCounts(ctx context.Context, blogID primitive.ObjectID) (likes int64, dislikes int64, views int64, err error)
+	FindByBlogAndUser(ctx context.Context, blogID, userID primitive.ObjectID) (*entities.BlogInteraction, error) //new
 }
 
 type mongoBlogRepository struct {
@@ -194,4 +195,45 @@ func (r *mongoBlogInteractionRepository) GetPopularityCounts(ctx context.Context
 	}
 
 	return likes, dislikes, views, nil
+}
+
+// new
+
+// FindByBlogAndUser finds a specific interaction record for a given blog and user.
+func (r *mongoBlogInteractionRepository) FindByBlogAndUser(ctx context.Context, blogID, userID primitive.ObjectID) (*entities.BlogInteraction, error) {
+	var interaction entities.BlogInteraction
+	filter := bson.M{
+		"blog_id": blogID,
+		"user_id": userID,
+	}
+
+	err := r.collection.FindOne(ctx, filter).Decode(&interaction)
+	if err != nil {
+		// It's normal for a document not to be found, so we don't treat mongo.ErrNoDocuments as a critical error here.
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // No interaction found, return nil without an error.
+		}
+		return nil, err
+	}
+	return &interaction, nil
+}
+
+// UpdateCounts directly sets the like and dislike counts on a blog post.
+func (r *mongoBlogRepository) UpdateCounts(ctx context.Context, blogID primitive.ObjectID, likes, dislikes int64) error {
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$set": bson.M{
+			"likes":    likes,
+			"dislikes": dislikes,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("blog post not found to update counts")
+	}
+	return nil
 }

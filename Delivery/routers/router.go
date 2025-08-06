@@ -1,8 +1,8 @@
 package routers
 
 import (
-	"g6_starter_project/Infrastructure/services"
 	"g6_starter_project/Delivery/handlers"
+	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +29,9 @@ func SetupRouter(
 	router.POST("/login", userHandler.Login)
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
+
+	router.Use(services.AuthMiddleware(jwtService))
+	router.POST("/logout", userHandler.Logout)
 
 	// Profile routes (authentication required)
 	profileRoutes := router.Group("/profile")
