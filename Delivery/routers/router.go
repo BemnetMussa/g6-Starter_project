@@ -14,6 +14,7 @@ func SetupRouter(
 	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
 	userProfileHandler *handlers.UserProfileHandler,
+	aiHandler *handlers.AIHandler,
 	jwtService *services.JWTService,
 ) *gin.Engine {
 
@@ -35,6 +36,17 @@ func SetupRouter(
 	{
 		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
 		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
+	}
+
+	// AI routes (authentication required)
+	aiRoutes := router.Group("/ai")
+	aiRoutes.Use(services.GinAuthMiddleware(jwtService))
+	{
+		aiRoutes.POST("/generate-content", aiHandler.GenerateBlogContent)
+		aiRoutes.POST("/suggest-topics", aiHandler.SuggestTopics)
+		aiRoutes.POST("/enhance-content", aiHandler.EnhanceContent)
+		aiRoutes.GET("/chat-history", aiHandler.GetChatHistory)
+		aiRoutes.DELETE("/chat/:id", aiHandler.DeleteChat)
 	}
 
 	// Blog routes

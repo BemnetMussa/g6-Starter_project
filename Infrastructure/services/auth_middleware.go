@@ -21,7 +21,7 @@ func AuthMiddleware(authSvc JWTServiceInterface) gin.HandlerFunc {
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			return
-		}
+			}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {

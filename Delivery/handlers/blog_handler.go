@@ -186,7 +186,7 @@ func (h *BlogHandler) DeletePost(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, gin.H{"message": "Post deleted successfully"})
 }
 
 // LikePost handles POST /posts/:id/like requests.
