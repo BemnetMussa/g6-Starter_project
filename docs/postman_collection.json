@@ -1,0 +1,619 @@
+{
+  "info": {
+    "_postman_id": "blog-api-collection",
+    "name": "Blog API - Complete Collection",
+    "description": "Complete API collection for the Blog API with email verification, AI integration, and user management features.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["forgot-password"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset-token-from-email\",\n  \"new_password\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["reset-password"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Email Verification",
+      "item": [
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/verify?token=YOUR_VERIFICATION_TOKEN",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "YOUR_VERIFICATION_TOKEN"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Verification Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/resend-verification",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "resend-verification"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile Management",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profile/me",
+              "host": ["{{base_url}}"],
+              "path": ["profile", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe Updated\",\n  \"username\": \"johndoe_updated\",\n  \"profile_image\": \"https://example.com/new-profile.jpg\",\n  \"bio\": \"This is my updated bio!\",\n  \"contact_info\": {\n    \"phone\": \"+1234567890\",\n    \"address\": \"123 Updated Street, City\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/profile/me",
+              "host": ["{{base_url}}"],
+              "path": ["profile", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Blog Posts",
+      "item": [
+        {
+          "name": "List Blog Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blog?page=1&limit=10&sortBy=date_desc",
+              "host": ["{{base_url}}"],
+              "path": ["blog"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "date_desc"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Blog Post by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Blog Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My First Blog Post\",\n  \"content\": \"This is the content of my blog post. It contains information about the topic I'm writing about.\",\n  \"tags\": [\"go\", \"api\", \"blog\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/blog",
+              "host": ["{{base_url}}"],
+              "path": ["blog"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Blog Post",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Blog Post Title\",\n  \"content\": \"This is the updated content of my blog post.\",\n  \"tags\": [\"go\", \"api\", \"updated\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Blog Post",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Like Blog Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}/like",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}", "like"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Dislike Blog Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}/dislike",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}", "dislike"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Create Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This is a great blog post! Thanks for sharing.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/blog/{{blog_id}}/comments",
+              "host": ["{{base_url}}"],
+              "path": ["blog", "{{blog_id}}", "comments"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Integration",
+      "item": [
+        {
+          "name": "Generate Blog Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Go programming best practices\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ai/generate-content",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "generate-content"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Suggest Topics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Web Development\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ai/suggest-topics",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "suggest-topics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enhance Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This is a basic blog post about Go programming. It needs improvement.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ai/enhance-content",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "enhance-content"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ai/chat-history",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "chat-history"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Chat",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ai/chat/{{chat_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "chat", "{{chat_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Promote User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}/promote",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "{{user_id}}", "promote"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Demote User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}/demote",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "{{user_id}}", "demote"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "{{user_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "your-jwt-access-token-here",
+      "type": "string"
+    },
+    {
+      "key": "blog_id",
+      "value": "your-blog-post-id-here",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "your-user-id-here",
+      "type": "string"
+    },
+    {
+      "key": "chat_id",
+      "value": "your-chat-id-here",
+      "type": "string"
+    }
+  ]
+}

@@ -51,25 +51,28 @@ func main() {
 	commentUseCase := usecases.NewCommentUsecase(commentRepository, blogRepository)
 	commentHandler := handlers.NewCommentHandler(commentUseCase)
 	aiUseCase := usecases.NewAIUsecase(aiService, chatRepository, userRepository)
+	verificationUseCase := usecases.NewVerificationUsecase(userRepository, emailService)
 
 
 	// Handlers
 	blogHandler := handlers.NewBlogHandler(blogUseCase)
 	userProfileHandler := handlers.NewUserProfileHandler(userProfileUseCase)
 	aiHandler := handlers.NewAIHandler(aiUseCase)
+	verificationHandler := handlers.NewVerificationHandler(verificationUseCase)
 
-// Route
+	// Router
 	router := routers.SetupRouter(
 		userUseCase,
 		passwordResetUseCase,
 		userManagementUseCase,
+		verificationUseCase,
 		blogHandler,
-		jwtService,
 		userProfileHandler,
 		commentHandler,
-     aiHandler,
+		aiHandler,
+		verificationHandler,
+		jwtService,
 	)
-
 
 	log.Printf("Server running on port %s", serverPort)
 	if err := router.Run(":" + serverPort); err != nil {
@@ -82,7 +85,7 @@ func LoadEnvVariables() {
 	if err := godotenv.Load(".env"); err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
-}
+	}
 
 func GetAppConfig() (mongoURI string, dbName string, port string) {
 	mongoURI = os.Getenv("MONGODB_URI")
@@ -101,7 +104,7 @@ func GetAppConfig() (mongoURI string, dbName string, port string) {
 	}
 
 	return
-}
+	}
 
 func ConnectToMongoDB(uri string) *mongo.Client {
 	client, err := db.ConnectMongoDB(uri)

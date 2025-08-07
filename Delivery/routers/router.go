@@ -9,30 +9,34 @@ import (
 )
 
 func SetupRouter(
-	userUsecase *usecases.UserUsecase,
-	passwordResetUsecase *usecases.PasswordResetUsecase,
+	userUsecase *usecases.UserUsecase, 
+	passwordResetUsecase *usecases.PasswordResetUsecase, 
 	userManagementUsecase *usecases.UserManagementUsecase,
+	verificationUsecase *usecases.VerificationUsecase,
 	blogHandler *handlers.BlogHandler,
 	userProfileHandler *handlers.UserProfileHandler,
 	commentHandler *handlers.CommentHandler,
 	aiHandler *handlers.AIHandler,
+	verificationHandler *handlers.VerificationHandler,
 	jwtService *services.JWTService,
 ) *gin.Engine {
 
 	router := gin.Default()
-
+	
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userUsecase, passwordResetUsecase)
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementUsecase)
-
+	
 	// Public routes
-	router.POST("/register", userHandler.Register)
+	router.POST("/register", verificationHandler.RegisterWithVerification) // Registration with email verification
 	router.POST("/login", userHandler.Login)
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
+	
+	// Verification routes
+	router.GET("/auth/verify", verificationHandler.VerifyEmail)
+	router.POST("/auth/resend-verification", verificationHandler.ResendVerificationEmail)
 
-
-	//logoutRoutes.Use(services.AuthMiddleware(authSvc))
 	// Protected logout route
 	logoutRoutes := router.Group("")
 	logoutRoutes.Use(services.AuthMiddleware(jwtService))
@@ -42,7 +46,7 @@ func SetupRouter(
 
 	// Profile routes (authentication required)
 	profileRoutes := router.Group("/profile")
-	profileRoutes.Use(services.GinAuthMiddleware(authSvc))
+	profileRoutes.Use(services.GinAuthMiddleware(jwtService))
 	{
 		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
 		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
@@ -59,7 +63,6 @@ func SetupRouter(
 		aiRoutes.DELETE("/chat/:id", aiHandler.DeleteChat)
 	}
 
-
 	// Blog routes
 	postRoutes := router.Group("/blog")
 	{
@@ -69,8 +72,7 @@ func SetupRouter(
 
 		// Protected routes
 		protectedPostRoutes := postRoutes.Group("")
-		protectedPostRoutes.Use(services.GinAuthMiddleware(authSvc))
-		//protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService)) // main
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
@@ -81,16 +83,16 @@ func SetupRouter(
 			protectedPostRoutes.POST("/:id/comments", commentHandler.CreateComment)
 		}
 	}
-
+	
 	// Admin routes
 	adminGroup := router.Group("/admin")
-	adminGroup.Use(services.GinAuthMiddleware(authSvc))
+	adminGroup.Use(services.GinAuthMiddleware(jwtService))
 	adminGroup.Use(services.GinRoleAuthorization("admin"))
 	{
 		adminGroup.PUT("/users/:id/promote", userManagementHandler.PromoteUser)
 		adminGroup.PUT("/users/:id/demote", userManagementHandler.DemoteUser)
 		adminGroup.GET("/users/:id", userManagementHandler.GetUserByID)
 	}
-
+	
 	return router
 }

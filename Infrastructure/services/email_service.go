@@ -1,13 +1,14 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/smtp"
 	"os"
 	"strings"
 )
 
-// EmailService handles email operations
 type EmailService struct {
 	smtpHost     string
 	smtpPort     string
@@ -15,7 +16,6 @@ type EmailService struct {
 	smtpPassword string
 }
 
-// NewEmailService creates a new email service
 func NewEmailService() *EmailService {
 	return &EmailService{
 		smtpHost:     os.Getenv("SMTP_HOST"),
@@ -23,6 +23,105 @@ func NewEmailService() *EmailService {
 		smtpUsername: os.Getenv("SMTP_USERNAME"),
 		smtpPassword: os.Getenv("SMTP_PASSWORD"),
 	}
+}
+
+// GenerateVerificationToken generates a random verification token
+func (e *EmailService) GenerateVerificationToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+// SendVerificationEmail sends a verification email to the user
+func (e *EmailService) SendVerificationEmail(to, username, verificationToken string) error {
+	// Get base URL from environment or use default
+	baseURL := os.Getenv("APP_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+
+	// Create verification link
+	verificationLink := fmt.Sprintf("%s/auth/verify?token=%s", baseURL, verificationToken)
+
+	// Email subject
+	subject := "Email Verification - Blog API"
+
+	// Email body
+	body := fmt.Sprintf(`
+Hello %s,
+
+Thank you for registering with our Blog API. Please click the link below to verify your email address:
+
+%s
+
+This link will expire in 24 hours.
+
+If you didn't create this account, please ignore this email.
+
+Best regards,
+Blog API Team
+`, username, verificationLink)
+
+	// Try to send real email if SMTP is configured
+	if e.smtpHost != "" && e.smtpUsername != "" && e.smtpPassword != "" {
+		err := e.sendEmail(to, subject, body)
+		if err == nil {
+			fmt.Printf("✅ Verification email sent successfully to: %s\n", to)
+			return nil
+		}
+		fmt.Printf("⚠️ Failed to send verification email via SMTP: %v\n", err)
+	}
+
+	// Fallback to console logging if SMTP is not configured
+	fmt.Printf("=== VERIFICATION EMAIL (CONSOLE LOG) ===\n")
+	fmt.Printf("To: %s\n", to)
+	fmt.Printf("Subject: %s\n", subject)
+	fmt.Printf("Body:\n%s\n", body)
+	fmt.Printf("Verification Link: %s\n", verificationLink)
+	fmt.Printf("===========================\n")
+	fmt.Printf("💡 To send real emails, configure SMTP settings in your .env file\n")
+
+	return nil
+}
+
+// SendWelcomeEmail sends a welcome email after successful verification
+func (e *EmailService) SendWelcomeEmail(to, username string) error {
+	// Email subject
+	subject := "Welcome to Blog API!"
+
+	// Email body
+	body := fmt.Sprintf(`
+Hello %s,
+
+Your email has been successfully verified! You can now log in to your account and start creating blog posts.
+
+Welcome to our community!
+
+Best regards,
+Blog API Team
+`, username)
+
+	// Try to send real email if SMTP is configured
+	if e.smtpHost != "" && e.smtpUsername != "" && e.smtpPassword != "" {
+		err := e.sendEmail(to, subject, body)
+		if err == nil {
+			fmt.Printf("✅ Welcome email sent successfully to: %s\n", to)
+			return nil
+		}
+		fmt.Printf("⚠️ Failed to send welcome email via SMTP: %v\n", err)
+	}
+
+	// Fallback to console logging if SMTP is not configured
+	fmt.Printf("=== WELCOME EMAIL (CONSOLE LOG) ===\n")
+	fmt.Printf("To: %s\n", to)
+	fmt.Printf("Subject: %s\n", subject)
+	fmt.Printf("Body:\n%s\n", body)
+	fmt.Printf("===========================\n")
+	fmt.Printf("💡 To send real emails, configure SMTP settings in your .env file\n")
+
+	return nil
 }
 
 // SendPasswordResetEmail sends a password reset email
@@ -139,6 +238,8 @@ func (e *EmailService) sendEmail(to, subject, body string) error {
 	
 	return err
 }
+
+
 
 
 
