@@ -14,14 +14,16 @@ import (
 
 // SearchFilterOptions is a struct to hold all possible criteria for searching/filtering.
 type SearchFilterOptions struct {
-	AuthorID  *primitive.ObjectID
-	Tags      []string
-	Title     string
-	Page      int64
-	Limit     int64
-	StartDate *time.Time
-	EndDate   *time.Time
-	SortBy    string
+	AuthorID      *primitive.ObjectID
+	Tags          []string
+	Title         string
+	Page          int64
+	Limit         int64
+	StartDate     *time.Time
+	EndDate       *time.Time
+	SortBy        string
+	MinPopularity *int64
+	MaxPopularity *int64
 }
 
 // IBlogRepository defines the contract for all blog data operations.
@@ -34,6 +36,7 @@ type IBlogRepository interface {
 	// Advanced queries: seraching, filtering
 	Find(ctx context.Context, options SearchFilterOptions) ([]entities.Blog, int64, error)
 	UpdateCounts(ctx context.Context, blogID primitive.ObjectID, likes, dislikes int64) error //new
+	IncrementCommentCount(ctx context.Context, blogID primitive.ObjectID) error
 }
 
 // IBlogInteractionRepository defines the contract for interaction data.
@@ -44,7 +47,15 @@ type IBlogInteractionRepository interface {
 	FindByBlogAndUser(ctx context.Context, blogID, userID primitive.ObjectID) (*entities.BlogInteraction, error) //new
 }
 
+type ICommentRepository interface {
+	Create(ctx context.Context, comment *entities.Comment) (*entities.Comment, error)
+}
+
 type mongoBlogRepository struct {
+	collection *mongo.Collection
+}
+
+type mongoCommentRepository struct {
 	collection *mongo.Collection
 }
 
@@ -58,6 +69,9 @@ type mongoBlogInteractionRepository struct {
 
 func NewBlogInteractionRepository(db *mongo.Database) IBlogInteractionRepository {
 	return &mongoBlogInteractionRepository{collection: db.Collection("blog_interactions")}
+}
+func NewCommentRepository(db *mongo.Database) ICommentRepository {
+	return &mongoCommentRepository{collection: db.Collection("comments")}
 }
 
 // // --- Method Implementations ---
@@ -99,42 +113,62 @@ func (r *mongoBlogRepository) Delete(ctx context.Context, id primitive.ObjectID)
 	return err
 }
 
+// In Infrastructure/mongodb/repositories/blog_repository_impl.go
+
 func (r *mongoBlogRepository) Find(ctx context.Context, filterOptions SearchFilterOptions) ([]entities.Blog, int64, error) {
+	// --- STAGE 1: Build the Complete Filter ---
 	filter := bson.M{}
+
 	if filterOptions.AuthorID != nil {
 		filter["author_id"] = filterOptions.AuthorID
 	}
 	if filterOptions.Title != "" {
-		// regex for case-insensitive "contains" search
 		filter["title"] = bson.M{"$regex": filterOptions.Title, "$options": "i"}
 	}
-	if len(filterOptions.Tags) > 0 {
-		// $in to match any of the tags in the array
+	if len(filterOptions.Tags) > 0 && filterOptions.Tags[0] != "" {
 		filter["tags"] = bson.M{"$in": filterOptions.Tags}
 	}
-
 	if filterOptions.StartDate != nil && filterOptions.EndDate != nil {
-		filter["created_at"] = bson.M{
-			"$gte": filterOptions.StartDate, // gte = Greter Than or Equal to
-			"$lte": filterOptions.EndDate,   // lte = Less Than or Equal to
-		}
+		filter["created_at"] = bson.M{"$gte": filterOptions.StartDate, "$lte": filterOptions.EndDate}
 	} else if filterOptions.StartDate != nil {
 		filter["created_at"] = bson.M{"$gte": filterOptions.StartDate}
 	} else if filterOptions.EndDate != nil {
 		filter["created_at"] = bson.M{"$lte": filterOptions.EndDate}
 	}
-	// pagination options
+
+	// --- MOVE THE POPULARITY LOGIC HERE ---
+	if filterOptions.MinPopularity != nil {
+		filter["likes"] = bson.M{"$gte": *filterOptions.MinPopularity}
+	}
+	if filterOptions.MaxPopularity != nil {
+		if _, ok := filter["likes"]; ok {
+			filter["likes"].(bson.M)["$lte"] = *filterOptions.MaxPopularity
+		} else {
+			filter["likes"] = bson.M{"$lte": *filterOptions.MaxPopularity}
+		}
+	}
+	// --- End of filter building ---
+
+	// --- STAGE 2: Build the Query Options (Pagination & Sorting) ---
 	findOptions := options.Find()
 	findOptions.SetLimit(filterOptions.Limit)
 	findOptions.SetSkip((filterOptions.Page - 1) * filterOptions.Limit)
-	sort := bson.M{"created_at": -1}
 
-	if filterOptions.SortBy == "popularity" {
-		sort = bson.M{"likes": -1}
+	sort := bson.M{}
+	switch filterOptions.SortBy {
+	case "popularity":
+		sort["likes"] = -1
+	case "date_asc":
+		sort["created_at"] = 1
+	case "date_desc":
+		sort["created_at"] = -1
+	default:
+		sort["created_at"] = -1
 	}
-
 	findOptions.SetSort(sort)
 
+	// --- STAGE 3: Execute the Database Queries ---
+	// The `filter` variable now contains ALL the required criteria.
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, 0, err
@@ -145,11 +179,14 @@ func (r *mongoBlogRepository) Find(ctx context.Context, filterOptions SearchFilt
 	if err = cursor.All(ctx, &posts); err != nil {
 		return nil, 0, err
 	}
+
+	// The `filter` for counting is also now correct.
 	totalCount, err := r.collection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	// --- STAGE 4: Return the Results ---
 	return posts, totalCount, nil
 }
 
@@ -236,4 +273,22 @@ func (r *mongoBlogRepository) UpdateCounts(ctx context.Context, blogID primitive
 		return errors.New("blog post not found to update counts")
 	}
 	return nil
+}
+
+// Comment
+func (r *mongoCommentRepository) Create(ctx context.Context, comment *entities.Comment) (*entities.Comment, error) {
+	result, err := r.collection.InsertOne(ctx, comment)
+	if err != nil {
+		return nil, err
+	}
+	comment.ID = result.InsertedID.(primitive.ObjectID)
+	return comment, nil
+}
+
+func (r *mongoBlogRepository) IncrementCommentCount(ctx context.Context, blogID primitive.ObjectID) error {
+	filter := bson.M{"_id": blogID}
+	// Use the $inc operator for an atomic and fast increment operation.
+	update := bson.M{"$inc": bson.M{"comment_count": 1}}
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
 }

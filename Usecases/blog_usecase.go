@@ -19,7 +19,7 @@ type IBlogUsecase interface {
 	UpdatePost(ctx context.Context, postID string, updateData *entities.Blog, requestingUserID primitive.ObjectID) (*entities.Blog, error)
 	DeletePost(ctx context.Context, postID string, requestingUserID primitive.ObjectID, requestingUserRole string) error
 	// filter & Search usecases
-	ListPosts(ctx context.Context, tag, authorName, title, sortBy string, startDate, endDate *time.Time, page, limit int64) ([]entities.Blog, int64, error)
+	ListPosts(ctx context.Context, tag, authorName, title, sortBy string, startDate, endDate *time.Time, page, limit int64, minPopularity, maxPopularity *int64) ([]entities.Blog, int64, error)
 	// Popularity usecases
 	LikePost(ctx context.Context, postID string, userID primitive.ObjectID) error
 	DislikePost(ctx context.Context, postID string, userID primitive.ObjectID) error
@@ -79,8 +79,8 @@ func (uc *blogUsecase) GetPostByID(ctx context.Context, postID string, userID *p
 		return post, nil
 	}
 
-	post.Likes = int64(likes)
-	post.Dislikes = int64(dislikes)
+	post.Likes = int(likes)
+	post.Dislikes = int(dislikes)
 	post.ViewCount = int(views)
 
 	return post, nil
@@ -136,26 +136,31 @@ func (uc *blogUsecase) DeletePost(ctx context.Context, postID string, requesting
 	return uc.blogRepo.Delete(ctx, objectID)
 }
 
-// ListPosts returns filtered and paginated blog posts with search and sort options
+// ListPosts returns filtered and paginated blog posts with enhanced search.
 func (uc *blogUsecase) ListPosts(
 	ctx context.Context,
 	tag string,
-	authorIDStr string,
+	authorName string,
 	title string,
 	sortBy string,
 	startDate, endDate *time.Time,
 	page, limit int64,
+	minPopularity, maxPopularity *int64,
 ) ([]entities.Blog, int64, error) {
+
 	var authorID *primitive.ObjectID
 	var tags []string
 
-	// Convert authorID string to ObjectID pointer
-	if authorIDStr != "" {
-		id, err := primitive.ObjectIDFromHex(authorIDStr)
+	if authorName != "" {
+		author, err := uc.userRepo.FindByName(ctx, authorName)
 		if err != nil {
-			return nil, 0, errors.New("invalid author ID")
+			return nil, 0, err
 		}
-		authorID = &id
+		if author == nil {
+			return []entities.Blog{}, 0, nil
+		}
+
+		authorID = &author.ID
 	}
 
 	if tag != "" {
@@ -163,14 +168,16 @@ func (uc *blogUsecase) ListPosts(
 	}
 
 	options := repositories.SearchFilterOptions{
-		AuthorID:  authorID,
-		Tags:      tags,
-		Title:     title,
-		Page:      page,
-		Limit:     limit,
-		StartDate: startDate,
-		EndDate:   endDate,
-		SortBy:    sortBy,
+		AuthorID:      authorID,
+		Tags:          tags,
+		Title:         title,
+		Page:          page,
+		Limit:         limit,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		SortBy:        sortBy,
+		MinPopularity: minPopularity,
+		MaxPopularity: maxPopularity,
 	}
 
 	return uc.blogRepo.Find(ctx, options)
