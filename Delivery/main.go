@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
+	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Delivery/routers"
 	"g6_starter_project/Infrastructure/db"
 	"g6_starter_project/Infrastructure/mongodb/repositories"
-	"g6_starter_project/Delivery/handlers"
 	"g6_starter_project/Infrastructure/services"
 	usecases "g6_starter_project/Usecases"
 
@@ -37,6 +37,7 @@ func main() {
 	tokenRepository := repositories.NewTokenRepository(database.Collection("token"))
 	blogRepository := repositories.NewBlogRepository(database)
 	interactionRepository := repositories.NewBlogInteractionRepository(database)
+	commentRepository := repositories.NewCommentRepository(database)
 
 	// UseCases
 	tokenUseCase := usecases.NewTokenUsecase(tokenRepository, jwtService)
@@ -45,13 +46,23 @@ func main() {
 	userManagementUseCase := usecases.NewUserManagementUsecase(userRepository)
 	userProfileUseCase := usecases.NewUserProfileUsecase(userRepository)
 	blogUseCase := usecases.NewBlogUsecase(blogRepository, interactionRepository, userRepository)
+	commentUseCase := usecases.NewCommentUsecase(commentRepository, blogRepository)
+	commentHandler := handlers.NewCommentHandler(commentUseCase)
 
 	// Handlers
 	blogHandler := handlers.NewBlogHandler(blogUseCase)
 	userProfileHandler := handlers.NewUserProfileHandler(userProfileUseCase)
 
 	// Router
-	router := routers.SetupRouter(userUseCase, passwordResetUseCase, userManagementUseCase, blogHandler, userProfileHandler, jwtService)
+	router := routers.SetupRouter(
+		userUseCase,
+		passwordResetUseCase,
+		userManagementUseCase,
+		blogHandler,
+		jwtService,
+		userProfileHandler,
+		commentHandler,
+	)
 
 	log.Printf("Server running on port %s", serverPort)
 	if err := router.Run(":" + serverPort); err != nil {

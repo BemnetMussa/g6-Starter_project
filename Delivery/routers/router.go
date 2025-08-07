@@ -6,7 +6,6 @@ import (
 	usecases "g6_starter_project/Usecases"
 
 	"github.com/gin-gonic/gin"
-
 )
 
 func SetupRouter(
@@ -17,7 +16,7 @@ func SetupRouter(
 	authSvc services.JWTServiceInterface,
 
 	userProfileHandler *handlers.UserProfileHandler,
-	jwtService *services.JWTService,
+	commentHandler *handlers.CommentHandler,
 
 ) *gin.Engine {
 
@@ -33,17 +32,19 @@ func SetupRouter(
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
 
-	router.Use(services.AuthMiddleware(jwtService))
-	router.POST("/logout", userHandler.Logout)
+	logoutRoutes := router.Group("")
+	logoutRoutes.Use(services.AuthMiddleware(authSvc))
+	{
+		logoutRoutes.POST("/logout", userHandler.Logout)
+	}
 
 	// Profile routes (authentication required)
 	profileRoutes := router.Group("/profile")
-	profileRoutes.Use(services.GinAuthMiddleware(jwtService))
+	profileRoutes.Use(services.GinAuthMiddleware(authSvc))
 	{
 		profileRoutes.GET("/me", userProfileHandler.GetMyProfile)
 		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
 	}
-
 
 	// Blog routes
 	postRoutes := router.Group("/blog")
@@ -52,12 +53,9 @@ func SetupRouter(
 		postRoutes.GET("", blogHandler.ListPosts)
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
 
-		// Protected routes 
+		// Protected routes
 		protectedPostRoutes := postRoutes.Group("")
-// <<<<<<< test/blog-route
-// 		protectedPostRoutes.Use(services.AuthMiddleware(authSvc))
-// =======
-		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
+		protectedPostRoutes.Use(services.GinAuthMiddleware(authSvc))
 
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
@@ -66,12 +64,13 @@ func SetupRouter(
 
 			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
 			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
+			protectedPostRoutes.POST("/:id/comments", commentHandler.CreateComment)
 		}
 	}
 
 	// Admin routes
 	adminGroup := router.Group("/admin")
-	adminGroup.Use(services.GinAuthMiddleware(jwtService))
+	adminGroup.Use(services.GinAuthMiddleware(authSvc))
 	adminGroup.Use(services.GinRoleAuthorization("admin"))
 	{
 		adminGroup.PUT("/users/:id/promote", userManagementHandler.PromoteUser)

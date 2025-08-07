@@ -1,19 +1,16 @@
 package handlers
 
 import (
-	// "context"
-	// "encoding/json"
-	// "fmt"
 	"net/http"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"g6_starter_project/Domain/entities"
 	usecases "g6_starter_project/Usecases"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // BlogHandler - the controller for blog-related HTTP requests.
@@ -55,7 +52,7 @@ func (h *BlogHandler) CreatePost(c *gin.Context) {
 func (h *BlogHandler) GetPostByID(c *gin.Context) {
 	postID := c.Param("id")
 
-	// Check if a user is logged in to track the view.(optional)
+	// Check if a user is logged in to track the view.
 	var userID *primitive.ObjectID
 	userIDHex, exists := c.Get("userID")
 	if exists {
@@ -109,6 +106,8 @@ func (h *BlogHandler) ListPosts(c *gin.Context) {
 	authorName := c.Query("author")
 	title := c.Query("title")
 	sortBy := c.DefaultQuery("sortBy", "createdAt")
+	minPopStr := c.Query("minPopularity")
+	maxPopStr := c.Query("maxPopularity")
 
 	// Date filtering
 	var startTimePtr, endTimePtr *time.Time
@@ -148,8 +147,25 @@ func (h *BlogHandler) ListPosts(c *gin.Context) {
 		limit = 10
 	}
 
+	// Popularity
+	var minPopularity, maxPopularity *int64
+
+	if minPopStr != "" {
+		val, err := strconv.ParseInt(minPopStr, 10, 64)
+		if err == nil {
+			minPopularity = &val
+		}
+	}
+
+	if maxPopStr != "" {
+		val, err := strconv.ParseInt(maxPopStr, 10, 64)
+		if err == nil {
+			maxPopularity = &val
+		}
+	}
+
 	// Usecase call
-	posts, total, err := h.blogUsecase.ListPosts(ctx, tag, authorName, title, sortBy, startTimePtr, endTimePtr, int64(page), int64(limit))
+	posts, total, err := h.blogUsecase.ListPosts(ctx, tag, authorName, title, sortBy, startTimePtr, endTimePtr, int64(page), int64(limit), minPopularity, maxPopularity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -163,7 +179,6 @@ func (h *BlogHandler) ListPosts(c *gin.Context) {
 		"posts": posts,
 	})
 }
-
 
 // DeletePost handles DELETE /posts/:id requests.
 func (h *BlogHandler) DeletePost(c *gin.Context) {
