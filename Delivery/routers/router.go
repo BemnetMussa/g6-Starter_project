@@ -13,11 +13,10 @@ func SetupRouter(
 	passwordResetUsecase *usecases.PasswordResetUsecase,
 	userManagementUsecase *usecases.UserManagementUsecase,
 	blogHandler *handlers.BlogHandler,
-	authSvc services.JWTServiceInterface,
-
 	userProfileHandler *handlers.UserProfileHandler,
 	commentHandler *handlers.CommentHandler,
-
+	aiHandler *handlers.AIHandler,
+	jwtService *services.JWTService,
 ) *gin.Engine {
 
 	router := gin.Default()
@@ -32,8 +31,11 @@ func SetupRouter(
 	router.POST("/forgot-password", userHandler.ForgotPassword)
 	router.POST("/reset-password", userHandler.ResetPassword)
 
+
+	//logoutRoutes.Use(services.AuthMiddleware(authSvc))
+	// Protected logout route
 	logoutRoutes := router.Group("")
-	logoutRoutes.Use(services.AuthMiddleware(authSvc))
+	logoutRoutes.Use(services.AuthMiddleware(jwtService))
 	{
 		logoutRoutes.POST("/logout", userHandler.Logout)
 	}
@@ -46,6 +48,18 @@ func SetupRouter(
 		profileRoutes.PUT("/me", userProfileHandler.UpdateMyProfile)
 	}
 
+	// AI routes (authentication required)
+	aiRoutes := router.Group("/ai")
+	aiRoutes.Use(services.GinAuthMiddleware(jwtService))
+	{
+		aiRoutes.POST("/generate-content", aiHandler.GenerateBlogContent)
+		aiRoutes.POST("/suggest-topics", aiHandler.SuggestTopics)
+		aiRoutes.POST("/enhance-content", aiHandler.EnhanceContent)
+		aiRoutes.GET("/chat-history", aiHandler.GetChatHistory)
+		aiRoutes.DELETE("/chat/:id", aiHandler.DeleteChat)
+	}
+
+
 	// Blog routes
 	postRoutes := router.Group("/blog")
 	{
@@ -56,7 +70,7 @@ func SetupRouter(
 		// Protected routes
 		protectedPostRoutes := postRoutes.Group("")
 		protectedPostRoutes.Use(services.GinAuthMiddleware(authSvc))
-
+		//protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService)) // main
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)

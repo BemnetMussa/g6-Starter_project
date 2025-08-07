@@ -27,10 +27,22 @@ func NewUserHandler(userUC *usecases.UserUsecase, resetUC *usecases.PasswordRese
 // Register handles user registration
 func (h *UserHandler) Register(c *gin.Context) {
 	var user entities.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var userRequest struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+		Username string `json:"username" binding:"required"`
+		FullName string `json:"full_name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&userRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	user.Email = userRequest.Email
+	user.Password = userRequest.Password
+	user.Username = userRequest.Username
+	user.FullName = userRequest.FullName
 
 	createdUser, err := h.userUsecase.Register(&user)
 	if err != nil {

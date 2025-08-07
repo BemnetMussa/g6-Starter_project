@@ -26,18 +26,20 @@ func main() {
 
 	database := mongoClient.Database(databaseName)
 
-	// Services
-	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
-	emailService := services.NewEmailService()
-	rateLimiter := services.NewRateLimiter()
-	rateLimiter.StartCleanup()
-
 	// Repositories
 	userRepository := repositories.NewUserRepository(database.Collection("users"))
 	tokenRepository := repositories.NewTokenRepository(database.Collection("token"))
 	blogRepository := repositories.NewBlogRepository(database)
 	interactionRepository := repositories.NewBlogInteractionRepository(database)
 	commentRepository := repositories.NewCommentRepository(database)
+	chatRepository := repositories.NewChatRepository(database.Collection("chats"))
+
+	// Services
+	jwtService := services.NewJWTService(os.Getenv("JWT_SECRET"))
+	emailService := services.NewEmailService()
+	rateLimiter := services.NewRateLimiter()
+	aiService := services.NewAIService()
+	rateLimiter.StartCleanup()
 
 	// UseCases
 	tokenUseCase := usecases.NewTokenUsecase(tokenRepository, jwtService)
@@ -48,12 +50,15 @@ func main() {
 	blogUseCase := usecases.NewBlogUsecase(blogRepository, interactionRepository, userRepository)
 	commentUseCase := usecases.NewCommentUsecase(commentRepository, blogRepository)
 	commentHandler := handlers.NewCommentHandler(commentUseCase)
+	aiUseCase := usecases.NewAIUsecase(aiService, chatRepository, userRepository)
+
 
 	// Handlers
 	blogHandler := handlers.NewBlogHandler(blogUseCase)
 	userProfileHandler := handlers.NewUserProfileHandler(userProfileUseCase)
+	aiHandler := handlers.NewAIHandler(aiUseCase)
 
-	// Router
+// Route
 	router := routers.SetupRouter(
 		userUseCase,
 		passwordResetUseCase,
@@ -62,7 +67,9 @@ func main() {
 		jwtService,
 		userProfileHandler,
 		commentHandler,
+     aiHandler,
 	)
+
 
 	log.Printf("Server running on port %s", serverPort)
 	if err := router.Run(":" + serverPort); err != nil {
@@ -71,7 +78,8 @@ func main() {
 }
 
 func LoadEnvVariables() {
-	if err := godotenv.Load(); err != nil {
+	// Look for .env file in the current directory (project root)
+	if err := godotenv.Load(".env"); err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
 }
