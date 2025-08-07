@@ -15,6 +15,7 @@ func SetupRouter(
 	verificationUsecase *usecases.VerificationUsecase,
 	blogHandler *handlers.BlogHandler,
 	userProfileHandler *handlers.UserProfileHandler,
+	commentHandler *handlers.CommentHandler,
 	aiHandler *handlers.AIHandler,
 	verificationHandler *handlers.VerificationHandler,
 	jwtService *services.JWTService,
@@ -61,17 +62,17 @@ func SetupRouter(
 		aiRoutes.GET("/chat-history", aiHandler.GetChatHistory)
 		aiRoutes.DELETE("/chat/:id", aiHandler.DeleteChat)
 	}
-	
+
 	// Blog routes
 	postRoutes := router.Group("/blog")
 	{
 		// Public
 		postRoutes.GET("", blogHandler.ListPosts)
 		postRoutes.GET("/:id", blogHandler.GetPostByID)
-		
-		// Protected routes 
+
+		// Protected routes
 		protectedPostRoutes := postRoutes.Group("")
-		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService)) 
+		protectedPostRoutes.Use(services.GinAuthMiddleware(jwtService))
 		{
 			protectedPostRoutes.POST("", blogHandler.CreatePost)
 			protectedPostRoutes.PUT("/:id", blogHandler.UpdatePost)
@@ -79,6 +80,7 @@ func SetupRouter(
 
 			protectedPostRoutes.POST("/:id/like", blogHandler.LikePost)
 			protectedPostRoutes.POST("/:id/dislike", blogHandler.DislikePost)
+			protectedPostRoutes.POST("/:id/comments", commentHandler.CreateComment)
 		}
 	}
 	

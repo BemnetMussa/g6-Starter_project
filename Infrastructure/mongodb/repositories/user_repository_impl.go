@@ -116,7 +116,7 @@ func (r *UserRepositoryImpl) UpdateResetToken(userID string, resetToken *string,
 	filter := bson.M{"_id": objectID}
 	update := bson.M{
 		"$set": bson.M{
-			"reset_token":             resetToken,
+			"reset_token":            resetToken,
 			"reset_token_expires_at": expiresAt,
 			"updated_at":             time.Now(),
 		},
@@ -158,3 +158,16 @@ func (r *UserRepositoryImpl) UpdateVerificationStatus(userID string, isVerified 
 	return err
 }
 
+func (r *UserRepositoryImpl) FindByName(ctx context.Context, name string) (*entities.User, error) {
+	var user entities.User
+	filter := bson.M{"full_name": bson.M{"$regex": name, "$options": "i"}}
+
+	err := r.db.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
