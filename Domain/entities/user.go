@@ -9,10 +9,11 @@ import (
 type User struct {
     ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
     FullName     string            `bson:"full_name" json:"full_name"`
-    Username     string            `bson:"username" json:"username"` // unique
+    UserName     string            `bson:"username" json:"username"` // unique
     Email        string            `bson:"email" json:"email"`      // unique
     Password     string            `bson:"password" json:"password"` // Allow password during registration
     Role         string            `bson:"role" json:"role,omitempty"` // "admin", "user" 
+    IsVerified   bool              `bson:"is_verified" json:"is_verified"`
     ProfileImage *string           `bson:"profile_image,omitempty" json:"profile_image,omitempty"`
     Bio          *string           `bson:"bio,omitempty" json:"bio,omitempty"`
     ContactInfo  *ContactInfo      `bson:"contact_info,omitempty" json:"contact_info,omitempty"`
@@ -32,9 +33,11 @@ type UserRepository interface {
 	CreateUser(user *User) (*User, error)
 	GetUserByID(id string) (*User, error)
 	GetUserByEmail(email string) (*User, error)
+	GetUserByUsername(username string) (*User, error)
 	GetUserCount() (int64, error)
 	UpdateUser(user *User) (*User, error)
 	DeleteUser(id string) error
 	UpdateResetToken(userID string, resetToken *string, expiresAt *time.Time) error
 	GetUserByResetToken(resetToken string) (*User, error)
+	UpdateVerificationStatus(userID string, isVerified bool) error
 }

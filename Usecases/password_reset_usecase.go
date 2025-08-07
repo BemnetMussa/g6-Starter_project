@@ -100,3 +100,4 @@ func (p *PasswordResetUsecase) ResetPassword(token, newPassword string) error {
 
 	return nil
 }
+

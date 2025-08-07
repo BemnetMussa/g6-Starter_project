@@ -43,6 +43,20 @@ func (r *UserRepositoryImpl) GetUserByEmail(email string) (*entities.User, error
 	return &user, nil
 }
 
+func (r *UserRepositoryImpl) GetUserByUsername(username string) (*entities.User, error) {
+	filter := bson.M{"username": username}
+	var user entities.User
+	err := r.db.FindOne(context.TODO(), filter).Decode(&user)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *UserRepositoryImpl) GetUserCount() (int64, error) {
 	count, err := r.db.CountDocuments(context.TODO(), bson.M{})
 	if err != nil {
@@ -124,5 +138,23 @@ func (r *UserRepositoryImpl) GetUserByResetToken(resetToken string) (*entities.U
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepositoryImpl) UpdateVerificationStatus(userID string, isVerified bool) error {
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return errors.New("invalid user ID")
+	}
+
+	filter := bson.M{"_id": objectID}
+	update := bson.M{
+		"$set": bson.M{
+			"is_verified": isVerified,
+			"updated_at":  time.Now(),
+		},
+	}
+
+	_, err = r.db.UpdateOne(context.TODO(), filter, update)
+	return err
 }
 

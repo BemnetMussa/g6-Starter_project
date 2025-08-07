@@ -24,35 +24,6 @@ func NewUserHandler(userUC *usecases.UserUsecase, resetUC *usecases.PasswordRese
 	}
 }
 
-// Register handles user registration
-func (h *UserHandler) Register(c *gin.Context) {
-	var user entities.User
-	var userRequest struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required"`
-		Username string `json:"username" binding:"required"`
-		FullName string `json:"full_name" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&userRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	user.Email = userRequest.Email
-	user.Password = userRequest.Password
-	user.Username = userRequest.Username
-	user.FullName = userRequest.FullName
-
-	createdUser, err := h.userUsecase.Register(&user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, createdUser)
-}
-
 // Login handles user authentication and token generation
 func (h *UserHandler) Login(c *gin.Context) {
 	var loginRequest struct {
