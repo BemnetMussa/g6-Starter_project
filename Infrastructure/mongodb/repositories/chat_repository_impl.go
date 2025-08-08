@@ -21,10 +21,13 @@ func NewChatRepository(db *mongo.Collection) entities.ChatRepository {
 }
 
 func (r *ChatRepositoryImpl) CreateChat(chat *entities.Chat) (*entities.Chat, error) {
-	_, err := r.db.InsertOne(context.TODO(), chat)
+	result, err := r.db.InsertOne(context.TODO(), chat)
 	if err != nil {
 		return nil, err
 	}
+	
+	// Set the generated ID back to the chat object
+	chat.ID = result.InsertedID.(primitive.ObjectID)
 	return chat, nil
 }
 
@@ -64,6 +67,12 @@ func (r *ChatRepositoryImpl) GetChatsByUserID(userID string) ([]entities.Chat, e
 	if err = cursor.All(context.TODO(), &chats); err != nil {
 		return nil, err
 	}
+	
+	// Return empty slice instead of nil if no chats found
+	if chats == nil {
+		chats = []entities.Chat{}
+	}
+	
 	return chats, nil
 }
 

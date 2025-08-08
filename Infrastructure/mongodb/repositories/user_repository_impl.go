@@ -22,10 +22,25 @@ func NewUserRepository(db *mongo.Collection) entities.UserRepository {
 }
 
 func (r *UserRepositoryImpl) CreateUser(user *entities.User) (*entities.User, error) {
-	_, err := r.db.InsertOne(context.TODO(), user)
+	// Check for duplicate email
+	existingUser, err := r.GetUserByEmail(user.Email)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("email already exists")
+	}
+	
+	// Check for duplicate username
+	existingUser, err = r.GetUserByUsername(user.Username)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("username already exists")
+	}
+	
+	result, err := r.db.InsertOne(context.TODO(), user)
 	if err != nil {
 		return nil, err
 	}
+	
+	// Set the generated ID back to the user object
+	user.ID = result.InsertedID.(primitive.ObjectID)
 	return user, nil
 }
 
@@ -89,10 +104,16 @@ func (r *UserRepositoryImpl) UpdateUser(user *entities.User) (*entities.User, er
 	filter := bson.M{"_id": user.ID}
 	update := bson.M{"$set": user}
 
-	_, err := r.db.UpdateOne(context.TODO(), filter, update)
+	result, err := r.db.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		return nil, err
 	}
+	
+	// Check if any document was actually updated
+	if result.MatchedCount == 0 {
+		return nil, errors.New("user not found")
+	}
+	
 	return user, nil
 }
 
