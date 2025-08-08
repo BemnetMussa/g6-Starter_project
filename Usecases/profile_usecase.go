@@ -41,8 +41,8 @@ func (u *UserProfileUsecase) UpdateUserProfile(userID string, updateData *entiti
 	}
 
 	// Update only allowed fields (profile-related fields only)
-	if updateData.UserName != "" {
-		existingUser.UserName = updateData.UserName
+	if updateData.Username != "" {
+		existingUser.Username = updateData.Username
 	}
 	if updateData.FullName != "" {
 		existingUser.FullName = updateData.FullName

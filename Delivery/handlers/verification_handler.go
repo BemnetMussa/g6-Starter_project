@@ -23,7 +23,7 @@ func NewVerificationHandler(verificationUC *usecases.VerificationUsecase) *Verif
 func (h *VerificationHandler) RegisterWithVerification(c *gin.Context) {
 	var user struct {
 		FullName string `json:"full_name"`
-		UserName string `json:"username"`
+		Username string `json:"username"`
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
@@ -36,7 +36,7 @@ func (h *VerificationHandler) RegisterWithVerification(c *gin.Context) {
 	// Convert to User entity
 	userEntity := &entities.User{
 		FullName: user.FullName,
-		UserName: user.UserName,
+		Username: user.Username,
 		Email:    user.Email,
 		Password: user.Password,
 	}

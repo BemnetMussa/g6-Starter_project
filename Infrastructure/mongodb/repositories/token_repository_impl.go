@@ -8,6 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type TokenRepository struct {
@@ -21,8 +22,17 @@ func NewTokenRepository(col *mongo.Collection) *TokenRepository {
 
 // Create inserts a new token into the database
 func (r *TokenRepository) Create(ctx context.Context, token *entities.Token) error {
-	_, err := r.collection.InsertOne(ctx, token)
-	return err
+	result, err := r.collection.InsertOne(ctx, token)
+	if err != nil {
+		return err
+	}
+	
+	// Set the generated ID back to the token object
+	// Convert ObjectID to string
+	if objectID, ok := result.InsertedID.(primitive.ObjectID); ok {
+		token.ID = objectID.Hex()
+	}
+	return nil
 }
 
 // FindByUserID retrieves a token by user ID

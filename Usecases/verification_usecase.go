@@ -53,7 +53,7 @@ func (v *VerificationUsecase) RegisterWithVerification(user *entities.User) (*en
 	}
 	
 	// Send verification email
-	username := user.UserName
+	username := user.Username
 	if username == "" {
 		username = user.FullName
 	}
@@ -102,7 +102,7 @@ func (v *VerificationUsecase) VerifyEmail(token string) error {
 	}
 	
 	// Send welcome email
-	username := user.UserName
+	username := user.Username
 	if username == "" {
 		username = user.FullName
 	}
@@ -148,7 +148,7 @@ func (v *VerificationUsecase) ResendVerificationEmail(email string) error {
 	}
 	
 	// Send verification email
-	username := user.UserName
+	username := user.Username
 	if username == "" {
 		username = user.FullName
 	}
