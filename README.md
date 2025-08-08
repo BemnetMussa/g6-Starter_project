@@ -413,10 +413,6 @@ The application can be deployed to:
 - Update documentation for API changes
 - Use conventional commit messages
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🆘 Support
 
 If you encounter any issues:
